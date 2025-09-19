@@ -249,24 +249,28 @@ pub fn parse_metadata_content(content: &str) -> (Option<String>, Vec<String>) {
     (license, classifiers)
 }
 
+fn normalize_license_name(license: &str) -> String {
+    let license_lower = license.to_lowercase();
+    
+    if license_lower.contains("mit") {
+        "MIT".to_string()
+    } else if license_lower.contains("apache") {
+        "Apache-2.0".to_string()
+    } else if license_lower.contains("bsd") {
+        "BSD".to_string()
+    } else if license_lower.contains("gpl") {
+        "GPL".to_string()
+    } else {
+        license.to_string()
+    }
+}
+
 fn extract_license_from_classifier(classifier: &str) -> String {
     if let Some(license_part) = classifier.strip_prefix("License :: OSI Approved :: ") {
         let normalized = license_part.replace(" License", "").replace(" Software License", "");
-        if normalized.contains("Apache") {
-            "Apache-2.0".to_string()
-        } else {
-            normalized
-        }
-    } else if classifier.contains("MIT") {
-        "MIT".to_string()
-    } else if classifier.contains("Apache") {
-        "Apache-2.0".to_string()
-    } else if classifier.contains("BSD") {
-        "BSD".to_string()
-    } else if classifier.contains("GPL") {
-        "GPL".to_string()
+        normalize_license_name(&normalized)
     } else {
-        classifier.to_string()
+        normalize_license_name(classifier)
     }
 }
 
@@ -277,7 +281,7 @@ fn get_normalized_license(package: &PackageLicense) -> Option<(String, bool)> {
         let license_name = extract_license_from_classifier(classifier);
         Some((license_name, is_osi))
     } else if let Some(ref license) = package.license {
-        Some((license.clone(), false))
+        Some((normalize_license_name(license), false))
     } else {
         None
     }
@@ -435,8 +439,9 @@ License: UNKNOWN
         // OSI Approved should be in osi_approved category
         assert_eq!(report.summary.license_types.osi_approved.get("MIT"), Some(&1));
         
-        // Non-OSI classifier and no classifier should be in non_osi category
+        // Non-OSI classifier should be normalized
         assert_eq!(report.summary.license_types.non_osi.get("License :: Other/Proprietary License"), Some(&1));
-        assert_eq!(report.summary.license_types.non_osi.get("MIT License"), Some(&1));
+        // Raw license field should also be normalized to MIT
+        assert_eq!(report.summary.license_types.non_osi.get("MIT"), Some(&1));
     }
 }
