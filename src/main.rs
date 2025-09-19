@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -49,11 +49,17 @@ pub struct LicenseReport {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct LicenseTypes {
+    osi_approved: BTreeMap<String, usize>,
+    non_osi: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LicenseSummary {
     total_packages: usize,
     with_license: usize,
     without_license: usize,
-    license_types: HashMap<String, usize>,
+    license_types: LicenseTypes,
 }
 
 fn main() -> Result<()> {
@@ -264,11 +270,16 @@ fn extract_license_from_classifier(classifier: &str) -> String {
     }
 }
 
-fn get_normalized_license(package: &PackageLicense) -> Option<String> {
+fn get_normalized_license(package: &PackageLicense) -> Option<(String, bool)> {
     if !package.license_classifiers.is_empty() {
-        Some(extract_license_from_classifier(&package.license_classifiers[0]))
+        let classifier = &package.license_classifiers[0];
+        let is_osi = classifier.starts_with("License :: OSI Approved ::");
+        let license_name = extract_license_from_classifier(classifier);
+        Some((license_name, is_osi))
+    } else if let Some(ref license) = package.license {
+        Some((license.clone(), false))
     } else {
-        package.license.clone()
+        None
     }
 }
 
@@ -279,11 +290,32 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
         .count();
     let without_license = total_packages - with_license;
 
-    let mut license_types = HashMap::new();
+    let mut osi_counts = HashMap::new();
+    let mut non_osi_counts = HashMap::new();
+    
     for package in &packages {
-        if let Some(normalized_license) = get_normalized_license(package) {
-            *license_types.entry(normalized_license).or_insert(0) += 1;
+        if let Some((license_name, is_osi)) = get_normalized_license(package) {
+            if is_osi {
+                *osi_counts.entry(license_name).or_insert(0) += 1;
+            } else {
+                *non_osi_counts.entry(license_name).or_insert(0) += 1;
+            }
         }
+    }
+
+    // Sort by count descending
+    let mut osi_sorted: Vec<_> = osi_counts.into_iter().collect();
+    osi_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    let mut osi_approved = BTreeMap::new();
+    for (license, count) in osi_sorted {
+        osi_approved.insert(license, count);
+    }
+
+    let mut non_osi_sorted: Vec<_> = non_osi_counts.into_iter().collect();
+    non_osi_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    let mut non_osi = BTreeMap::new();
+    for (license, count) in non_osi_sorted {
+        non_osi.insert(license, count);
     }
 
     LicenseReport {
@@ -292,7 +324,10 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
             total_packages,
             with_license,
             without_license,
-            license_types,
+            license_types: LicenseTypes {
+                osi_approved,
+                non_osi,
+            },
         },
     }
 }
@@ -368,29 +403,40 @@ License: UNKNOWN
     }
 
     #[test]
-    fn test_create_report() {
+    fn test_create_report_with_non_osi_classifier() {
         let packages = vec![
             PackageLicense {
-                name: "requests".to_string(),
-                version: Some("2.31.0".to_string()),
-                license: Some("Apache-2.0".to_string()),
-                license_classifiers: vec!["License :: OSI Approved :: Apache Software License".to_string()],
+                name: "osi-pkg".to_string(),
+                version: Some("1.0.0".to_string()),
+                license: Some("MIT".to_string()),
+                license_classifiers: vec!["License :: OSI Approved :: MIT License".to_string()],
                 metadata_source: "METADATA".to_string(),
             },
             PackageLicense {
-                name: "click".to_string(),
-                version: Some("8.1.7".to_string()),
-                license: None,
-                license_classifiers: vec![],
+                name: "proprietary-pkg".to_string(),
+                version: Some("1.0.0".to_string()),
+                license: Some("Custom License".to_string()),
+                license_classifiers: vec!["License :: Other/Proprietary License".to_string()],
+                metadata_source: "METADATA".to_string(),
+            },
+            PackageLicense {
+                name: "no-classifier-pkg".to_string(),
+                version: Some("1.0.0".to_string()),
+                license: Some("MIT License".to_string()),
+                license_classifiers: vec![], // Empty classifier
                 metadata_source: "METADATA".to_string(),
             },
         ];
 
         let report = create_report(packages);
-        assert_eq!(report.summary.total_packages, 2);
-        assert_eq!(report.summary.with_license, 1);
-        assert_eq!(report.summary.without_license, 1);
-        // Should use normalized license from classifier
-        assert_eq!(report.summary.license_types.get("Apache-2.0"), Some(&1));
+        assert_eq!(report.summary.total_packages, 3);
+        assert_eq!(report.summary.with_license, 3);
+        
+        // OSI Approved should be in osi_approved category
+        assert_eq!(report.summary.license_types.osi_approved.get("MIT"), Some(&1));
+        
+        // Non-OSI classifier and no classifier should be in non_osi category
+        assert_eq!(report.summary.license_types.non_osi.get("License :: Other/Proprietary License"), Some(&1));
+        assert_eq!(report.summary.license_types.non_osi.get("MIT License"), Some(&1));
     }
 }
