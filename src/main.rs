@@ -243,6 +243,35 @@ pub fn parse_metadata_content(content: &str) -> (Option<String>, Vec<String>) {
     (license, classifiers)
 }
 
+fn extract_license_from_classifier(classifier: &str) -> String {
+    if let Some(license_part) = classifier.strip_prefix("License :: OSI Approved :: ") {
+        let normalized = license_part.replace(" License", "").replace(" Software License", "");
+        if normalized.contains("Apache") {
+            "Apache-2.0".to_string()
+        } else {
+            normalized
+        }
+    } else if classifier.contains("MIT") {
+        "MIT".to_string()
+    } else if classifier.contains("Apache") {
+        "Apache-2.0".to_string()
+    } else if classifier.contains("BSD") {
+        "BSD".to_string()
+    } else if classifier.contains("GPL") {
+        "GPL".to_string()
+    } else {
+        classifier.to_string()
+    }
+}
+
+fn get_normalized_license(package: &PackageLicense) -> Option<String> {
+    if !package.license_classifiers.is_empty() {
+        Some(extract_license_from_classifier(&package.license_classifiers[0]))
+    } else {
+        package.license.clone()
+    }
+}
+
 pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
     let total_packages = packages.len();
     let with_license = packages.iter()
@@ -252,11 +281,8 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
 
     let mut license_types = HashMap::new();
     for package in &packages {
-        if let Some(ref license) = package.license {
-            *license_types.entry(license.clone()).or_insert(0) += 1;
-        }
-        for classifier in &package.license_classifiers {
-            *license_types.entry(classifier.clone()).or_insert(0) += 1;
+        if let Some(normalized_license) = get_normalized_license(package) {
+            *license_types.entry(normalized_license).or_insert(0) += 1;
         }
     }
 
@@ -364,6 +390,7 @@ License: UNKNOWN
         assert_eq!(report.summary.total_packages, 2);
         assert_eq!(report.summary.with_license, 1);
         assert_eq!(report.summary.without_license, 1);
+        // Should use normalized license from classifier
         assert_eq!(report.summary.license_types.get("Apache-2.0"), Some(&1));
     }
 }
