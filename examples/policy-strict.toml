@@ -1,0 +1,16 @@
+name = "Strict License Policy"
+description = "Very strict policy - only common permissive licenses allowed"
+
+[allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-3-Clause"]
+patterns = []
+
+[forbidden_licenses]
+exact = ["GPL-3.0", "AGPL-3.0", "GPL-2.0", "MPL-2.0"]
+patterns = ["GPL-*", "AGPL-*", "LGPL-*"]
+
+[review_required]
+exact = ["ISC"]
+patterns = ["BSD-*"]
+
+# No exceptions in strict mode

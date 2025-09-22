@@ -1,10 +1,31 @@
 [package]
-name = "uv-license-extractor"
+name = "py-license-auditor"
 version = "0.1.0"
-edition = "2024"
-description = "Extract license information from Python packages"
-authors = ["Your Name <your.email@example.com>"]
+edition = "2021"
+description = "A fast, reliable command-line tool to extract and analyze license information from Python packages with policy-based violation detection"
+authors = ["yayami3 <116920988+yayami3@users.noreply.github.com>"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/yayami3/py-license-auditor"
+homepage = "https://github.com/yayami3/py-license-auditor"
+documentation = "https://docs.rs/py-license-auditor"
+readme = "README.md"
+keywords = ["license", "python", "compliance", "audit", "policy"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    ".git*", 
+    "target/", 
+    ".amazonq/",
+    "*.backup",
+    "test-*.toml",
+    "homebrew/",
+    "install.sh",
+    "python/"
+]
+autobins = false
+
+[[bin]]
+name = "py-license-auditor"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
@@ -12,7 +33,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"
 anyhow = "1.0"
-walkdir = "2.0"
+glob = "0.3"
+
+[lib]
+name = "py_license_auditor"
+crate-type = ["rlib"]
 
 [dev-dependencies]
 tempfile = "3.0"
