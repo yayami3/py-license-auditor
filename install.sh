@@ -3,7 +3,7 @@ set -e
 
 # py-license-auditor installer
 REPO="yayami3/py-license-auditor"
-VERSION="v0.1.0"
+VERSION="v0.1.1"
 
 # Colors
 RED='\033[0;31m'
