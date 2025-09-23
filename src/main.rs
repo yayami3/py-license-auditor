@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 // Import from our library
 use py_license_auditor::license::{extract_all_licenses, find_site_packages_path, create_report};
 use py_license_auditor::policy::LicensePolicy;
+use py_license_auditor::exceptions::{load_exceptions, save_exceptions, prompt_for_exception};
 
 #[derive(Parser)]
 #[command(name = "py-license-auditor")]
@@ -43,6 +44,10 @@ struct Cli {
     /// Exit with error code if violations are found
     #[arg(long)]
     fail_on_violations: bool,
+
+    /// Interactive mode for handling violations
+    #[arg(long)]
+    interactive: bool,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -111,7 +116,60 @@ fn main() -> Result<()> {
     
     // 違反検出の実行
     if let Some(policy) = &policy {
-        let violations = policy.detect_violations(&report.packages);
+        let mut exceptions = load_exceptions()?;
+        let mut violations = policy.detect_violations(&report.packages);
+        
+        // インタラクティブモードで例外処理
+        if cli.interactive && !violations.details.is_empty() {
+            let mut exceptions_added = 0;
+            let mut remaining_violations = Vec::new();
+            
+            for violation in violations.details {
+                // 例外チェック（既に例外に含まれているかもしれない）
+                if exceptions.is_excepted(&violation.package_name, violation.package_version.as_deref()) {
+                    continue;
+                }
+                
+                let violation_type = match violation.violation_level {
+                    py_license_auditor::policy::ViolationLevel::Forbidden => "Forbidden license",
+                    py_license_auditor::policy::ViolationLevel::ReviewRequired => "Review required",
+                    py_license_auditor::policy::ViolationLevel::Unknown => "Unknown license",
+                    _ => "Violation",
+                };
+                
+                if let Some(exception) = prompt_for_exception(
+                    &violation.package_name,
+                    violation.package_version.as_deref(),
+                    &violation.license.as_ref().unwrap_or(&"Unknown".to_string()),
+                    violation_type,
+                )? {
+                    exceptions.add_exception(exception);
+                    exceptions_added += 1;
+                } else {
+                    remaining_violations.push(violation);
+                }
+            }
+            
+            // 例外を保存
+            if exceptions_added > 0 {
+                save_exceptions(&exceptions)?;
+                eprintln!("Added {} exceptions to .exceptions.toml", exceptions_added);
+            }
+            
+            // 残りの違反で違反サマリーを更新
+            let errors = remaining_violations.iter().filter(|v| v.violation_level == py_license_auditor::policy::ViolationLevel::Forbidden).count();
+            let warnings = remaining_violations.iter().filter(|v| 
+                v.violation_level == py_license_auditor::policy::ViolationLevel::ReviewRequired || 
+                v.violation_level == py_license_auditor::policy::ViolationLevel::Unknown
+            ).count();
+            
+            violations = py_license_auditor::policy::ViolationSummary {
+                total: remaining_violations.len(),
+                errors,
+                warnings,
+                details: remaining_violations,
+            };
+        }
         
         // 違反があった場合の処理
         if violations.total > 0 {
