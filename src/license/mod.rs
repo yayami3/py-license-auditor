@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
@@ -20,8 +20,8 @@ pub struct PackageLicense {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LicenseTypes {
-    pub osi_approved: BTreeMap<String, usize>,
-    pub non_osi: BTreeMap<String, usize>,
+    pub osi_approved: Vec<(String, usize)>,
+    pub non_osi: Vec<(String, usize)>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,16 +102,12 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
         }
     }
 
-    // Convert HashMap to BTreeMap for consistent ordering
-    let mut osi_approved = BTreeMap::new();
-    for (license, count) in osi_counts {
-        osi_approved.insert(license, count);
-    }
+    // Convert HashMap to Vec and sort by count (descending)
+    let mut osi_approved: Vec<(String, usize)> = osi_counts.into_iter().collect();
+    osi_approved.sort_by(|a, b| b.1.cmp(&a.1));
 
-    let mut non_osi = BTreeMap::new();
-    for (license, count) in non_osi_counts {
-        non_osi.insert(license, count);
-    }
+    let mut non_osi: Vec<(String, usize)> = non_osi_counts.into_iter().collect();
+    non_osi.sort_by(|a, b| b.1.cmp(&a.1));
 
     LicenseReport {
         packages,
@@ -131,17 +127,21 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
 fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
     let mut licenses = Vec::new();
 
-    // Add license from License field
-    if let Some(license) = &package.license {
-        let is_osi = is_osi_approved_license(license);
-        licenses.push((license.clone(), is_osi));
-    }
-
-    // Add licenses from classifiers
+    // Prioritize classifiers (more standardized)
     for classifier in &package.license_classifiers {
         if let Some(license_name) = extract_license_from_classifier(classifier) {
+            let normalized_name = normalize_license_name(&license_name);
             let is_osi = classifier.contains("OSI Approved");
-            licenses.push((license_name, is_osi));
+            licenses.push((normalized_name, is_osi));
+        }
+    }
+
+    // Fallback to License field if no classifiers
+    if licenses.is_empty() {
+        if let Some(license) = &package.license {
+            let normalized_name = normalize_license_name(license);
+            let is_osi = is_osi_approved_license(&normalized_name);
+            licenses.push((normalized_name, is_osi));
         }
     }
 
@@ -151,6 +151,54 @@ fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
     }
 
     licenses
+}
+
+fn normalize_license_name(license: &str) -> String {
+    let license_lower = license.to_lowercase();
+    
+    // Common license normalizations
+    if license_lower.contains("mit") {
+        return "MIT".to_string();
+    }
+    if license_lower.contains("apache") && license_lower.contains("2.0") {
+        return "Apache-2.0".to_string();
+    }
+    if license_lower.contains("apache software license") {
+        return "Apache-2.0".to_string();
+    }
+    if license_lower.contains("bsd") && license_lower.contains("3") {
+        return "BSD-3-Clause".to_string();
+    }
+    if license_lower.contains("bsd") && license_lower.contains("2") {
+        return "BSD-2-Clause".to_string();
+    }
+    if license_lower.contains("bsd license") {
+        return "BSD-3-Clause".to_string();
+    }
+    if license_lower.contains("gpl") && license_lower.contains("3") {
+        return "GPL-3.0".to_string();
+    }
+    if license_lower.contains("gpl") && license_lower.contains("2") {
+        return "GPL-2.0".to_string();
+    }
+    if license_lower.contains("lgpl") && license_lower.contains("3") {
+        return "LGPL-3.0".to_string();
+    }
+    if license_lower.contains("lgpl") && license_lower.contains("2") {
+        return "LGPL-2.1".to_string();
+    }
+    if license_lower.contains("mozilla public license") || license_lower == "mpl-2.0" {
+        return "MPL-2.0".to_string();
+    }
+    if license_lower == "isc license" || license_lower == "isc" {
+        return "ISC".to_string();
+    }
+    if license_lower.contains("unlicense") {
+        return "Unlicense".to_string();
+    }
+    
+    // Return original if no normalization found
+    license.to_string()
 }
 
 fn is_osi_approved_license(license: &str) -> bool {
