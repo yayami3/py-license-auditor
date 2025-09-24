@@ -12,6 +12,3 @@ patterns = []
 [review_required]
 exact = ["GPL-3.0", "AGPL-3.0"]
 patterns = ["GPL-*", "AGPL-*"]
-
-# No exceptions needed for open source projects
-[[exceptions]]
