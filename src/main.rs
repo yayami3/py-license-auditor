@@ -1,12 +1,14 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // Import from our library
 use py_license_auditor::license::{extract_all_licenses, find_site_packages_path, create_report};
-use py_license_auditor::policy::LicensePolicy;
+
 use py_license_auditor::exceptions::handle_interactive_exceptions;
+use py_license_auditor::config::{BuiltinPolicy, load_config};
+
 
 #[derive(Parser)]
 #[command(name = "py-license-auditor")]
@@ -57,60 +59,30 @@ enum OutputFormat {
     Csv,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
-enum BuiltinPolicy {
-    Corporate,
-    Permissive,
-    Strict,
-}
-
-/// ポリシーファイルを読み込む
-fn load_policy(policy_path: &Path) -> Result<LicensePolicy> {
-    let content = fs::read_to_string(policy_path)
-        .with_context(|| format!("Failed to read policy file: {}", policy_path.display()))?;
-    
-    let policy: LicensePolicy = toml::from_str(&content)
-        .with_context(|| format!("Failed to parse policy file: {}", policy_path.display()))?;
-    
-    Ok(policy)
-}
-
-/// 組み込みポリシーを読み込む
-fn load_builtin_policy(policy_type: BuiltinPolicy) -> Result<LicensePolicy> {
-    let content = match policy_type {
-        BuiltinPolicy::Corporate => include_str!("../examples/policy-corporate.toml"),
-        BuiltinPolicy::Permissive => include_str!("../examples/policy-permissive.toml"),
-        BuiltinPolicy::Strict => include_str!("../examples/policy-strict.toml"),
-    };
-    
-    let policy: LicensePolicy = toml::from_str(content)
-        .with_context(|| format!("Failed to parse built-in {:?} policy", policy_type))?;
-    
-    Ok(policy)
-}
-
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    
+    // Load configuration from pyproject.toml
+    let config = load_config()?;
+    
+    // CLI arguments override config values
+    let include_unknown = cli.include_unknown || config.include_unknown.unwrap_or(false);
 
     let site_packages_path = find_site_packages_path(cli.path)?;
     eprintln!("Scanning: {}", site_packages_path.display());
 
-    let packages = extract_all_licenses(&site_packages_path, cli.include_unknown)?;
+    let packages = extract_all_licenses(&site_packages_path, include_unknown)?;
     
     // ポリシーチェックの実行
-    let policy = if cli.check_violations || cli.policy_file.is_some() || cli.policy.is_some() {
-        match (&cli.policy_file, &cli.policy) {
-            (Some(policy_path), None) => Some(load_policy(policy_path)?),
-            (None, Some(builtin_policy)) => Some(load_builtin_policy(builtin_policy.clone())?),
-            (None, None) => {
-                eprintln!("Warning: --check-violations specified but no --policy-file or --policy provided");
-                None
-            }
-            (Some(_), Some(_)) => unreachable!(), // conflicts_with prevents this
-        }
+    let policy = if cli.check_violations || cli.policy_file.is_some() || cli.policy.is_some() || config.policy.is_some() {
+        config.resolve_policy_from_cli(cli.policy_file.as_ref(), cli.policy.as_ref())?
     } else {
         None
     };
+    
+    if policy.is_none() && cli.check_violations {
+        eprintln!("Warning: --check-violations specified but no policy provided");
+    }
 
     let mut report = create_report(packages);
     
