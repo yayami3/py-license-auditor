@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 // Import from our library
 use py_license_auditor::license::{extract_all_licenses, find_site_packages_path, create_report};
 use py_license_auditor::policy::LicensePolicy;
+use py_license_auditor::exceptions::handle_interactive_exceptions;
 
 #[derive(Parser)]
 #[command(name = "py-license-auditor")]
@@ -43,6 +44,10 @@ struct Cli {
     /// Exit with error code if violations are found
     #[arg(long)]
     fail_on_violations: bool,
+
+    /// Interactive mode for handling violations
+    #[arg(long)]
+    interactive: bool,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -111,7 +116,12 @@ fn main() -> Result<()> {
     
     // 違反検出の実行
     if let Some(policy) = &policy {
-        let violations = policy.detect_violations(&report.packages);
+        let mut violations = policy.detect_violations(&report.packages);
+        
+        // インタラクティブモードで例外処理
+        if cli.interactive {
+            violations = handle_interactive_exceptions(violations)?;
+        }
         
         // 違反があった場合の処理
         if violations.total > 0 {
