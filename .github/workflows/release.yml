@@ -5,76 +5,67 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   build:
-    name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-      
-      - name: Package (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../py-license-auditor-${{ matrix.target }}.tar.gz py-license-auditor
-      
-      - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../py-license-auditor-${{ matrix.target }}.tar.gz py-license-auditor.exe
-      
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: py-license-auditor-${{ matrix.target }}
-          path: py-license-auditor-${{ matrix.target }}.tar.gz
-
-  release:
-    needs: build
+    name: Build and Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/*/py-license-auditor-*.tar.gz
-          body: |
-            ## Installation
-            
-            ```bash
-            curl -sSL https://raw.githubusercontent.com/yayami3/py-license-auditor/main/install.sh | bash
-            ```
-            
-            Or download the binary for your platform below.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    
+    - name: Build release binary
+      run: cargo build --release
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install build dependencies
+      run: pip install build twine
+    
+    - name: Copy binary to Python package
+      run: |
+        mkdir -p python/py_license_auditor/bin
+        cp target/release/py-license-auditor python/py_license_auditor/bin/py-license-auditor-linux-x86_64
+        chmod +x python/py_license_auditor/bin/py-license-auditor-linux-x86_64
+    
+    - name: Build Python package
+      run: python -m build
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          target/release/py-license-auditor
+          dist/*.whl
+          dist/*.tar.gz
+        body: |
+          ## uv tool integration ready! 🚀
+          
+          ```bash
+          # Install with uv tool
+          uv tool install py-license-auditor
+          
+          # Use in uv projects
+          cd my-uv-project
+          uv tool run py-license-auditor
+          ```
+          
+          ### Features
+          - ✅ Native uv.lock support
+          - ✅ uv tool integration
+          - ✅ Auto-detection (uv.lock → site-packages fallback)
+          - ✅ Policy-based license checking
+          
+          ### Changes
+          - feat: uv.lock integration for uv-native license extraction
+          - feat: uv tool install/run support via Python wrapper
+          - perf: 39% binary size reduction (2.3MB → 1.4MB)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

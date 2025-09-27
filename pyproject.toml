@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-license-auditor"
+version = "0.1.1"
+description = "Fast license auditor for uv projects - Extract and analyze license information with uv.lock integration"
+readme = "README.md"
+license = {text = "MIT OR Apache-2.0"}
+authors = [
+    {name = "yayami3", email = "116920988+yayami3@users.noreply.github.com"}
+]
+keywords = ["license", "python", "uv", "compliance", "audit"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Systems Administration",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/yayami3/py-license-auditor"
+Repository = "https://github.com/yayami3/py-license-auditor"
+Documentation = "https://github.com/yayami3/py-license-auditor#readme"
+Issues = "https://github.com/yayami3/py-license-auditor/issues"
+
+[project.scripts]
+py-license-auditor = "py_license_auditor:main"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["py_license_auditor*"]
+
+[tool.setuptools.package-data]
+py_license_auditor = ["bin/*"]

@@ -2,14 +2,14 @@
 name = "py-license-auditor"
 version = "0.1.1"
 edition = "2021"
-description = "A fast, reliable command-line tool to extract and analyze license information from Python packages with policy-based violation detection"
+description = "Fast license auditor for uv projects - Extract and analyze license information with uv.lock integration"
 authors = ["yayami3 <116920988+yayami3@users.noreply.github.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/yayami3/py-license-auditor"
 homepage = "https://github.com/yayami3/py-license-auditor"
 documentation = "https://docs.rs/py-license-auditor"
 readme = "README.md"
-keywords = ["license", "python", "compliance", "audit", "policy"]
+keywords = ["license", "python", "uv", "compliance", "audit"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [
     ".git*", 
@@ -42,3 +42,9 @@ crate-type = ["rlib"]
 
 [dev-dependencies]
 tempfile = "3.0"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

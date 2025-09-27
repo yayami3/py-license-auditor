@@ -1,28 +1,30 @@
 # py-license-auditor
 
 [![Crates.io](https://img.shields.io/crates/v/py-license-auditor.svg)](https://crates.io/crates/py-license-auditor)
-[![Documentation](https://docs.rs/py-license-auditor/badge.svg)](https://docs.rs/py-license-auditor)
+[![PyPI](https://img.shields.io/pypi/v/py-license-auditor.svg)](https://pypi.org/project/py-license-auditor/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 
-A fast, reliable command-line tool to extract and analyze license information from Python packages installed in your environment.
+**The fastest license auditor for uv projects** - Built specifically for the modern Python ecosystem.
 
-## ✨ Features
+> 🎯 **uv-First Strategy**: This tool is designed exclusively for [uv](https://github.com/astral-sh/uv) projects. We focus on providing the best possible experience for uv users rather than supporting all package managers.
 
-- 🔍 **Comprehensive Detection**: Extracts license info from `.dist-info` and `.egg-info` directories
-- 📊 **Multiple Output Formats**: JSON, TOML, and CSV support
-- 🎯 **Smart Categorization**: Separates OSI-approved from non-OSI licenses
-- 📈 **Usage Statistics**: Shows license distribution with counts
-- 🚀 **Fast Performance**: Written in Rust for speed
-- 🔧 **CI/CD Ready**: Perfect for automated license compliance checks
-- ⚖️ **License Violation Detection**: Automatically detect policy violations with customizable rules
-- 🚨 **Policy Enforcement**: Fail builds on forbidden licenses for compliance automation
-- 🎛️ **Flexible Configuration**: TOML-based policy files with exact matching and glob patterns
+## ✨ Why uv + py-license-auditor?
+
+- 🚀 **Built for Speed**: Both tools are written in Rust for maximum performance
+- 🎯 **uv-Native**: Deep integration with `uv.lock` and uv workflows  
+- 🔧 **Zero Config**: Works out of the box with uv projects
+- ⚡ **Fast Workflow**: `uv sync && py-license-auditor` - that's it!
 
 ## 🚀 Installation
 
-### Quick Install (Recommended)
+### For uv Users (Recommended)
 ```bash
-curl -sSL https://raw.githubusercontent.com/yayami3/py-license-auditor/main/install.sh | bash
+# Install as a uv tool
+uv tool install py-license-auditor
+
+# Use in any uv project
+cd my-uv-project
+uv tool run py-license-auditor
 ```
 
 ### Manual Installation
