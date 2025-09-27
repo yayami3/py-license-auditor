@@ -31,6 +31,39 @@ pub fn extract_all_licenses(site_packages_path: &Path, include_unknown: bool) ->
     Ok(packages)
 }
 
+/// Extract license information for a specific package by name
+pub fn extract_license_for_package(site_packages_path: &Path, package_name: &str) -> Result<PackageLicense> {
+    // Try .dist-info first (modern format)
+    let dist_info_pattern = format!("{}-*.dist-info", package_name.replace("-", "_"));
+    for entry in fs::read_dir(site_packages_path)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+        let name_str = file_name.to_string_lossy();
+        
+        if name_str.starts_with(&package_name.replace("-", "_")) && name_str.ends_with(".dist-info") {
+            if let Some(package) = extract_from_dist_info(&entry.path())? {
+                return Ok(package);
+            }
+        }
+    }
+
+    // Try .egg-info (legacy format)
+    let egg_info_pattern = format!("{}-*.egg-info", package_name.replace("-", "_"));
+    for entry in fs::read_dir(site_packages_path)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+        let name_str = file_name.to_string_lossy();
+        
+        if name_str.starts_with(&package_name.replace("-", "_")) && name_str.ends_with(".egg-info") {
+            if let Some(package) = extract_from_egg_info(&entry.path())? {
+                return Ok(package);
+            }
+        }
+    }
+
+    anyhow::bail!("Package '{}' not found in site-packages", package_name)
+}
+
 fn extract_from_dist_info(dist_info_path: &Path) -> Result<Option<PackageLicense>> {
     let metadata_path = dist_info_path.join("METADATA");
     if !metadata_path.exists() {

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
+use crate::uv_lock::{UvLockParser, UvLockFile};
 
 pub mod extractor;
 
@@ -79,6 +80,64 @@ pub fn find_site_packages_path(path: Option<PathBuf>) -> Result<PathBuf> {
     }
 
     anyhow::bail!("Could not find site-packages directory. Please specify with --path")
+}
+
+/// Extract licenses from uv.lock file and corresponding site-packages
+pub fn extract_licenses_from_uv_lock(uv_lock_path: Option<PathBuf>, site_packages_path: Option<PathBuf>) -> Result<Vec<PackageLicense>> {
+    // Find uv.lock file
+    let lock_path = match uv_lock_path {
+        Some(path) => path,
+        None => UvLockParser::find_uv_lock()
+            .ok_or_else(|| anyhow::anyhow!("No uv.lock file found in current directory or parent directories"))?
+    };
+
+    // Parse uv.lock
+    let lock_file = UvLockParser::parse_uv_lock(&lock_path)?;
+    let uv_packages = UvLockParser::extract_packages(&lock_file);
+
+    // Find site-packages directory
+    let site_packages = match site_packages_path {
+        Some(path) => path,
+        None => find_site_packages_path(None)?
+    };
+
+    // Extract licenses for packages found in uv.lock
+    let mut licenses = Vec::new();
+    for (package_name, package_version) in uv_packages {
+        if let Ok(license_info) = extractor::extract_license_for_package(&site_packages, &package_name) {
+            // Verify version matches uv.lock
+            let mut license_info = license_info;
+            if license_info.version.as_ref() != Some(&package_version) {
+                license_info.version = Some(package_version);
+            }
+            licenses.push(license_info);
+        } else {
+            // Package in uv.lock but not found in site-packages
+            licenses.push(PackageLicense {
+                name: package_name,
+                version: Some(package_version),
+                license: None,
+                license_classifiers: vec![],
+                metadata_source: "uv.lock (not installed)".to_string(),
+            });
+        }
+    }
+
+    Ok(licenses)
+}
+
+/// Auto-detect and extract licenses (uv.lock first, fallback to site-packages)
+pub fn extract_licenses_auto(path: Option<PathBuf>) -> Result<Vec<PackageLicense>> {
+    // Try uv.lock first
+    if let Some(_) = UvLockParser::find_uv_lock() {
+        eprintln!("Found uv.lock, using uv-native extraction");
+        return extract_licenses_from_uv_lock(None, path);
+    }
+
+    // Fallback to traditional site-packages scanning
+    eprintln!("No uv.lock found, using traditional site-packages scanning");
+    let site_packages_path = find_site_packages_path(path)?;
+    extract_all_licenses(&site_packages_path, false)
 }
 
 pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
