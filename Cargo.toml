@@ -34,6 +34,7 @@ serde_json = "1.0"
 toml = "0.8"
 anyhow = "1.0"
 glob = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
 
 [lib]
 name = "py_license_auditor"
