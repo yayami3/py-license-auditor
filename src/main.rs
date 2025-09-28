@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 // Import from our library
 use py_license_auditor::license::{extract_licenses_auto, create_report};
-
+use py_license_auditor::output::format_table_output;
 use py_license_auditor::exceptions::handle_interactive_exceptions;
 use py_license_auditor::config::{BuiltinPolicy, load_config};
 
@@ -20,12 +20,24 @@ struct Cli {
     path: Option<PathBuf>,
 
     /// Output format
-    #[arg(short, long, default_value = "json")]
+    #[arg(short, long, default_value = "table")]
     format: OutputFormat,
 
     /// Output file (default: stdout)
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Show all packages (default: issues only)
+    #[arg(long)]
+    verbose: bool,
+
+    /// Generate detailed report (JSON format)
+    #[arg(long)]
+    report: bool,
+
+    /// CI/CD mode (JSON format, exit on violations)
+    #[arg(long)]
+    ci: bool,
 
     /// Include packages without license information
     #[arg(long)]
@@ -54,6 +66,7 @@ struct Cli {
 
 #[derive(Clone, ValueEnum)]
 enum OutputFormat {
+    Table,
     Json,
     Toml,
     Csv,
@@ -107,7 +120,17 @@ fn main() -> Result<()> {
         report.violations = Some(violations);
     }
 
-    let output = match cli.format {
+    // Determine output format and mode
+    let (format, verbose, is_ci) = if cli.ci {
+        (OutputFormat::Json, false, true)
+    } else if cli.report {
+        (OutputFormat::Json, true, false)
+    } else {
+        (cli.format, cli.verbose, false)
+    };
+
+    let output = match format {
+        OutputFormat::Table => format_table_output(&report, verbose),
         OutputFormat::Json => serde_json::to_string_pretty(&report)?,
         OutputFormat::Toml => toml::to_string_pretty(&report)?,
         OutputFormat::Csv => "CSV not implemented yet".to_string(),

@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 use rayon::prelude::*;
+use indexmap::IndexMap;
 use crate::uv_lock::UvLockParser;
 
 pub mod extractor;
@@ -22,8 +23,8 @@ pub struct PackageLicense {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LicenseTypes {
-    pub osi_approved: Vec<(String, usize)>,
-    pub non_osi: Vec<(String, usize)>,
+    pub osi_approved: IndexMap<String, usize>,
+    pub non_osi: IndexMap<String, usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -130,18 +131,23 @@ pub fn extract_licenses_from_uv_lock(uv_lock_path: Option<PathBuf>, site_package
     Ok(licenses)
 }
 
-/// Auto-detect and extract licenses (uv.lock first, fallback to site-packages)
+/// Auto-detect and extract licenses (uv.lock required)
 pub fn extract_licenses_auto(path: Option<PathBuf>, include_unknown: bool) -> Result<Vec<PackageLicense>> {
-    // Try uv.lock first
+    // Require uv.lock file - no fallback to site-packages
     if let Some(_) = UvLockParser::find_uv_lock() {
         eprintln!("Found uv.lock, using uv-native extraction");
         return extract_licenses_from_uv_lock(None, path, include_unknown);
     }
 
-    // Fallback to traditional site-packages scanning
-    eprintln!("No uv.lock found, using traditional site-packages scanning");
-    let site_packages_path = find_site_packages_path(path)?;
-    extract_all_licenses(&site_packages_path, include_unknown)
+    // No uv.lock found - this tool is uv-only
+    Err(anyhow::anyhow!(
+        "No uv.lock found. This tool requires uv projects.\n\
+         Please run 'uv sync' to generate uv.lock file.\n\
+         \n\
+         For non-uv projects, consider migrating to uv:\n\
+         - uv init (new project)\n\
+         - uv import (from requirements.txt/pyproject.toml)"
+    ))
 }
 
 pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
@@ -165,12 +171,14 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
         }
     }
 
-    // Convert HashMap to Vec and sort by count (descending)
-    let mut osi_approved: Vec<(String, usize)> = osi_counts.into_iter().collect();
-    osi_approved.sort_by(|a, b| b.1.cmp(&a.1));
+    // Convert HashMap to Vec, sort by count (descending), then create IndexMap
+    let mut osi_vec: Vec<(String, usize)> = osi_counts.into_iter().collect();
+    osi_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    let osi_approved: IndexMap<String, usize> = osi_vec.into_iter().collect();
 
-    let mut non_osi: Vec<(String, usize)> = non_osi_counts.into_iter().collect();
-    non_osi.sort_by(|a, b| b.1.cmp(&a.1));
+    let mut non_osi_vec: Vec<(String, usize)> = non_osi_counts.into_iter().collect();
+    non_osi_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    let non_osi: IndexMap<String, usize> = non_osi_vec.into_iter().collect();
 
     LicenseReport {
         packages,
@@ -217,16 +225,34 @@ fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
 }
 
 fn normalize_license_name(license: &str) -> String {
+    let license = license.trim();
     let license_lower = license.to_lowercase();
     
-    // Common license normalizations
+    // Handle copyright statements and invalid licenses first
+    if license.starts_with("Copyright") || license.starts_with("=") || license.len() < 3 {
+        return "Unknown".to_string();
+    }
+    
+    // Exact matches first (most common cases)
+    match license {
+        "MIT" | "MIT License" | "MIT license" | "Expat license" => return "MIT".to_string(),
+        "Apache-2.0" | "Apache License" | "Apache Software License" => return "Apache-2.0".to_string(),
+        "BSD-3-Clause" | "BSD 3-Clause" | "BSD 3-Clause License" => return "BSD-3-Clause".to_string(),
+        "BSD-2-Clause" | "BSD 2-Clause" | "BSD 2-Clause License" => return "BSD-2-Clause".to_string(),
+        "MPL-2.0" | "Mozilla Public License 2.0" => return "MPL-2.0".to_string(),
+        "ISC" | "ISC License" => return "ISC".to_string(),
+        "GPL-2.0" | "GPLv2" => return "GPL-2.0".to_string(),
+        "GPL-3.0" | "GPLv3" => return "GPL-3.0".to_string(),
+        "LGPL-2.1" | "LGPLv2.1" => return "LGPL-2.1".to_string(),
+        "LGPL-3.0" | "LGPLv3" => return "LGPL-3.0".to_string(),
+        _ => {}
+    }
+    
+    // Pattern matching for variations
     if license_lower.contains("mit") {
         return "MIT".to_string();
     }
-    if license_lower.contains("apache") && license_lower.contains("2.0") {
-        return "Apache-2.0".to_string();
-    }
-    if license_lower.contains("apache software license") {
+    if license_lower.contains("apache") && (license_lower.contains("2.0") || license_lower.contains("software license")) {
         return "Apache-2.0".to_string();
     }
     if license_lower.contains("bsd") && license_lower.contains("3") {
