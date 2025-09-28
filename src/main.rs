@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 // Import from our library
-use py_license_auditor::license::{extract_licenses_auto, find_site_packages_path, create_report};
+use py_license_auditor::license::{extract_licenses_auto, create_report};
 
 use py_license_auditor::exceptions::handle_interactive_exceptions;
 use py_license_auditor::config::{BuiltinPolicy, load_config};
@@ -69,7 +69,7 @@ fn main() -> Result<()> {
     let include_unknown = cli.include_unknown || config.include_unknown.unwrap_or(false);
 
     // Auto-detect uv.lock or fallback to site-packages
-    let packages = extract_licenses_auto(cli.path)?;
+    let packages = extract_licenses_auto(cli.path, include_unknown)?;
     
     // ポリシーチェックの実行
     let policy = if cli.check_violations || cli.policy_file.is_some() || cli.policy.is_some() || config.policy.is_some() {

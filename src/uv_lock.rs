@@ -1,5 +1,4 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde::Deserialize;
 use std::path::Path;
 use anyhow::{Result, Context};
 
@@ -53,11 +52,32 @@ pub struct UvLockParser;
 impl UvLockParser {
     /// Parse uv.lock file and return structured data
     pub fn parse_uv_lock<P: AsRef<Path>>(path: P) -> Result<UvLockFile> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .with_context(|| format!("Failed to read uv.lock file: {}", path.as_ref().display()))?;
+        let path_ref = path.as_ref();
         
+        // Check if file exists
+        if !path_ref.exists() {
+            return Err(anyhow::anyhow!("uv.lock file not found: {}", path_ref.display()));
+        }
+        
+        // Check if file is readable
+        let content = std::fs::read_to_string(path_ref)
+            .with_context(|| format!("Failed to read uv.lock file: {}", path_ref.display()))?;
+        
+        // Check if file is empty
+        if content.trim().is_empty() {
+            return Err(anyhow::anyhow!("uv.lock file is empty: {}", path_ref.display()));
+        }
+        
+        // Parse TOML with detailed error information
         let lock_file: UvLockFile = toml::from_str(&content)
-            .with_context(|| "Failed to parse uv.lock file as TOML")?;
+            .with_context(|| {
+                format!("Failed to parse uv.lock file as TOML: {}\nThis might indicate a corrupted or incompatible uv.lock file.", path_ref.display())
+            })?;
+        
+        // Validate the parsed structure
+        if lock_file.packages.is_empty() {
+            eprintln!("Warning: uv.lock file contains no packages: {}", path_ref.display());
+        }
         
         Ok(lock_file)
     }
@@ -66,7 +86,18 @@ impl UvLockParser {
     pub fn extract_packages(lock_file: &UvLockFile) -> Vec<(String, String)> {
         lock_file.packages
             .iter()
-            .map(|pkg| (pkg.name.clone(), pkg.version.clone()))
+            .filter_map(|pkg| {
+                // Validate package name and version
+                if pkg.name.trim().is_empty() {
+                    eprintln!("Warning: Skipping package with empty name");
+                    return None;
+                }
+                if pkg.version.trim().is_empty() {
+                    eprintln!("Warning: Skipping package '{}' with empty version", pkg.name);
+                    return None;
+                }
+                Some((pkg.name.clone(), pkg.version.clone()))
+            })
             .collect()
     }
 
@@ -77,7 +108,16 @@ impl UvLockParser {
         loop {
             let uv_lock_path = current.join("uv.lock");
             if uv_lock_path.exists() {
-                return Some(uv_lock_path);
+                // Validate that the file is readable and not empty
+                if let Ok(metadata) = std::fs::metadata(&uv_lock_path) {
+                    if metadata.len() > 0 {
+                        return Some(uv_lock_path);
+                    } else {
+                        eprintln!("Warning: Found empty uv.lock file at {}, continuing search...", uv_lock_path.display());
+                    }
+                } else {
+                    eprintln!("Warning: Found uv.lock file at {} but cannot read metadata, continuing search...", uv_lock_path.display());
+                }
             }
             
             if !current.pop() {

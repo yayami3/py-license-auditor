@@ -34,7 +34,6 @@ pub fn extract_all_licenses(site_packages_path: &Path, include_unknown: bool) ->
 /// Extract license information for a specific package by name
 pub fn extract_license_for_package(site_packages_path: &Path, package_name: &str) -> Result<PackageLicense> {
     // Try .dist-info first (modern format)
-    let dist_info_pattern = format!("{}-*.dist-info", package_name.replace("-", "_"));
     for entry in fs::read_dir(site_packages_path)? {
         let entry = entry?;
         let file_name = entry.file_name();
@@ -48,7 +47,6 @@ pub fn extract_license_for_package(site_packages_path: &Path, package_name: &str
     }
 
     // Try .egg-info (legacy format)
-    let egg_info_pattern = format!("{}-*.egg-info", package_name.replace("-", "_"));
     for entry in fs::read_dir(site_packages_path)? {
         let entry = entry?;
         let file_name = entry.file_name();
