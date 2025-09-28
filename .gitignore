@@ -1,3 +1,6 @@
+# Amazon Q CLI files
+.amazonq/
+
 # Rust
 /target/
 
