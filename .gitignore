@@ -1,6 +1,9 @@
 # Amazon Q CLI files
 .amazonq/
 
+# Internal documentation (not for public repo)
+docs/
+
 # Rust
 /target/
 
