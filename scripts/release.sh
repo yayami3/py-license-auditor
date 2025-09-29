@@ -19,7 +19,12 @@ fi
 
 # 2. バージョン更新
 echo "📝 Updating version to $VERSION..."
-sed -i "s/version = \".*\"/version = \"$VERSION\"/g" Cargo.toml pyproject.toml python/py_license_auditor/__init__.py
+# Cargo.toml: [package]セクション内の最初のversionのみ
+sed -i '/^\[package\]/,/^\[/ { /^version = / { s/version = ".*"/version = "'$VERSION'"/; t; b; }; }' Cargo.toml
+# pyproject.toml: [project]セクション内の最初のversionのみ  
+sed -i '/^\[project\]/,/^\[/ { /^version = / { s/version = ".*"/version = "'$VERSION'"/; t; b; }; }' pyproject.toml
+# __init__.py: __version__のみ
+sed -i 's/__version__ = ".*"/__version__ = "'$VERSION'"/' python/py_license_auditor/__init__.py
 
 # 3. クリーンビルドテスト
 echo "📦 Testing clean build..."
