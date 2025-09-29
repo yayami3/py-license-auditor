@@ -121,7 +121,7 @@ fn main() -> Result<()> {
     }
 
     // Determine output format and mode
-    let (format, verbose, is_ci) = if cli.ci {
+    let (format, verbose, _is_ci) = if cli.ci {
         (OutputFormat::Json, false, true)
     } else if cli.report {
         (OutputFormat::Json, true, false)

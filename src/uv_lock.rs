@@ -228,13 +228,11 @@ source = { registry = "https://pypi.org/simple" }
         fs::create_dir(&site_packages).unwrap();
         
         // Test that the function handles missing packages gracefully
-        let result = extract_licenses_from_uv_lock(Some(uv_lock_path), Some(site_packages));
+        let result = extract_licenses_from_uv_lock(Some(uv_lock_path), Some(site_packages), false);
         assert!(result.is_ok());
         
         let packages = result.unwrap();
-        assert_eq!(packages.len(), 1);
-        assert_eq!(packages[0].name, "test-package");
-        assert_eq!(packages[0].version, Some("1.0.0".to_string()));
-        assert_eq!(packages[0].metadata_source, "uv.lock (not installed)");
+        // With include_unknown=false, packages without license info are filtered out
+        assert_eq!(packages.len(), 0);
     }
 }
