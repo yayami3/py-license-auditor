@@ -11,7 +11,7 @@ import subprocess
 import platform
 from pathlib import Path
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 def get_binary_path():
     """Get the path to the py-license-auditor binary for the current platform."""
