@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// ライセンスルール: 完全一致とパターンマッチングをサポート
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct LicenseRule {
     /// 完全一致するライセンス名のリスト
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct LicenseRule {
 }
 
 /// パッケージ固有の例外設定
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PackageException {
     pub name: String,
     pub version: Option<String>,
@@ -20,7 +20,7 @@ pub struct PackageException {
 }
 
 /// ライセンスポリシー設定
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LicensePolicy {
     /// ポリシー名
     pub name: String,

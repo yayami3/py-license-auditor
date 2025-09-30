@@ -1,11 +1,12 @@
 # Corporate License Policy
 # Conservative policy for proprietary software development
-# Usage: py-license-auditor --policy corporate
-# Init:  py-license-auditor --init corporate
+# Usage: py-license-auditor --init corporate
+# Then:  py-license-auditor
 
 [tool.py-license-auditor]
 format = "json"
 include_unknown = true
+check_violations = true
 fail_on_violations = true
 
 [tool.py-license-auditor.policy]

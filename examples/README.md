@@ -101,8 +101,11 @@ Use glob patterns for flexible license matching:
 
 ### GitHub Actions
 ```yaml
+- name: Setup License Policy
+  run: py-license-auditor --init corporate
+
 - name: License Check
-  run: py-license-auditor --check-violations --fail-on-violations
+  run: py-license-auditor
 ```
 
 ### Pre-commit Hook
@@ -111,7 +114,7 @@ Use glob patterns for flexible license matching:
   hooks:
     - id: license-check
       name: License Compliance
-      entry: py-license-auditor --check-violations
+      entry: py-license-auditor
       language: system
 ```
 
@@ -119,5 +122,5 @@ Use glob patterns for flexible license matching:
 ```makefile
 license-check:
 	py-license-auditor --format json --output licenses.json
-	py-license-auditor --check-violations --fail-on-violations
+	py-license-auditor
 ```

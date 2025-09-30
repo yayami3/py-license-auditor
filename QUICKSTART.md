@@ -13,44 +13,60 @@ py-license-auditor --path /path/to/site-packages
 py-license-auditor --output licenses.json
 ```
 
-## 2. License Violation Detection
+## 2. License Policy Setup
 
-### Option A: Use Built-in Policies (Recommended)
+### Setup Built-in Policies (Recommended)
 
 ```bash
 # Corporate policy (strict for proprietary software)
-py-license-auditor --policy corporate --check-violations
+py-license-auditor --init corporate
 
 # Permissive policy (balanced for open source)
-py-license-auditor --policy permissive --check-violations
+py-license-auditor --init personal
 
-# Strict policy (very restrictive)
-py-license-auditor --policy strict --check-violations
-
-# Fail on violations (for CI/CD)
-py-license-auditor --policy corporate --check-violations --fail-on-violations
+# Strict policy (very restrictive for CI/CD)
+py-license-auditor --init ci
 ```
 
-### Option B: Custom Policy File
-
-Create `policy.toml`:
-```toml
-name = "My Project Policy"
-
-[allowed_licenses]
-exact = ["MIT", "Apache-2.0", "BSD-3-Clause"]
-
-[forbidden_licenses]
-exact = ["GPL-3.0", "AGPL-3.0"]
-patterns = ["GPL-*"]
-```
+### Run License Checking
 
 ```bash
-# Use custom policy
-py-license-auditor --policy-file policy.toml --check-violations
+# Run with configured policy
+py-license-auditor
+
+# Interactive mode for handling violations
+py-license-auditor --interactive
 ```
 
-## 3. CI/CD Integration
+## 3. Custom Policy Configuration
+
+After running `--init`, customize your policy in `pyproject.toml`:
+
+```toml
+[tool.py-license-auditor]
+format = "json"
+include_unknown = true
+check_violations = true
+fail_on_violations = true
+
+[tool.py-license-auditor.policy]
+name = "My Project Policy"
+description = "Custom policy for our project"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-3-Clause"]
+patterns = ["BSD-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = ["GPL-3.0", "AGPL-3.0"]
+patterns = ["GPL-*"]
+
+[tool.py-license-auditor.policy.review_required]
+exact = ["MPL-2.0"]
+patterns = ["LGPL-*"]
+```
+
+## 4. CI/CD Integration
 
 ### GitHub Actions
 
@@ -65,33 +81,30 @@ jobs:
       - uses: actions/checkout@v3
       - name: Install py-license-auditor
         run: cargo install py-license-auditor
+      - name: Setup License Policy
+        run: py-license-auditor --init corporate
       - name: Check licenses
-        run: |
-          py-license-auditor \
-            --policy corporate \
-            --check-violations \
-            --fail-on-violations \
-            --output license-report.json
+        run: py-license-auditor --output license-report.json
 ```
 
-## 4. Output Formats
+## 5. Output Formats
 
 ```bash
 # JSON (default)
 py-license-auditor --format json
 
-# TOML
-py-license-auditor --format toml
+# Table for terminal viewing
+py-license-auditor --format table
 
 # CSV for spreadsheets
 py-license-auditor --format csv
 ```
 
-## 5. Policy Comparison
+## 6. Policy Comparison
 
-| Use Case | Recommended Policy | Command |
-|----------|-------------------|---------|
-| Corporate/Proprietary | `corporate` | `--policy corporate` |
-| Open Source Project | `permissive` | `--policy permissive` |
-| Maximum Security | `strict` | `--policy strict` |
-| Custom Requirements | Custom file | `--policy-file my-policy.toml` |
+| Use Case | Recommended Policy | Setup Command |
+|----------|-------------------|---------------|
+| Corporate/Proprietary | `corporate` | `py-license-auditor --init corporate` |
+| Open Source Project | `personal` | `py-license-auditor --init personal` |
+| Maximum Security | `ci` | `py-license-auditor --init ci` |
+| Custom Requirements | Custom config | Edit `pyproject.toml` after init |

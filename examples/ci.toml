@@ -1,7 +1,7 @@
 # Strict License Policy
 # Very restrictive policy for sensitive projects
-# Usage: py-license-auditor --policy strict
-# Init:  py-license-auditor --init ci
+# Usage: py-license-auditor --init ci
+# Then:  py-license-auditor
 
 [tool.py-license-auditor]
 format = "json"

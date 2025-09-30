@@ -101,22 +101,11 @@ py-license-auditor --format csv
 # Include packages without license info
 py-license-auditor --include-unknown
 
-# Check for policy violations
-py-license-auditor --check-violations
-
-# Fail build on forbidden licenses (for CI/CD)
-py-license-auditor --fail-on-violations
-
 # Combine options
 py-license-auditor --format csv --output report.csv --include-unknown
-```
 
-### Command-line Policy Override
-```bash
-# Override configured policy temporarily
-py-license-auditor --policy corporate --check-violations
-py-license-auditor --policy permissive --check-violations  
-py-license-auditor --policy strict --check-violations
+# Interactive mode for handling violations
+py-license-auditor --interactive
 ```
 
 ## 📊 Output Example
@@ -262,7 +251,7 @@ Automate license checking in your deployment pipeline.
   run: py-license-auditor --init corporate
   
 - name: License Check  
-  run: py-license-auditor --check-violations --fail-on-violations
+  run: py-license-auditor
     
 - name: Generate License Report
   run: py-license-auditor --format json --output license-report.json
@@ -273,7 +262,7 @@ Understand your project's license obligations and risks.
 
 ```bash
 # Focus on potential issues
-py-license-auditor --check-violations --format json
+py-license-auditor --format json
 ```
 
 ## 🔍 License Categories

@@ -1,11 +1,12 @@
 # Permissive License Policy
 # Balanced policy for open source projects
-# Usage: py-license-auditor --policy permissive
-# Init:  py-license-auditor --init personal
+# Usage: py-license-auditor --init personal
+# Then:  py-license-auditor
 
 [tool.py-license-auditor]
 format = "table"
 include_unknown = false
+check_violations = true
 fail_on_violations = false
 
 [tool.py-license-auditor.policy]
