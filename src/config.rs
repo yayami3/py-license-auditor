@@ -101,13 +101,23 @@ fn load_policy(policy_path: &PathBuf) -> Result<LicensePolicy> {
 
 fn load_builtin_policy(policy_name: String) -> Result<LicensePolicy> {
     let content = match policy_name.as_str() {
-        "corporate" => include_str!("../examples/policy-corporate.toml"),
-        "permissive" => include_str!("../examples/policy-permissive.toml"),
-        "strict" => include_str!("../examples/policy-strict.toml"),
+        "corporate" => include_str!("../examples/corporate.toml"),
+        "permissive" => include_str!("../examples/personal.toml"),
+        "strict" => include_str!("../examples/ci.toml"),
         _ => return Err(anyhow::anyhow!("Unknown built-in policy: {}", policy_name)),
     };
     
-    let policy: LicensePolicy = toml::from_str(content)
+    // Parse the full TOML and extract the policy section
+    let full_config: toml::Value = toml::from_str(content)
+        .with_context(|| format!("Failed to parse built-in {} config", policy_name))?;
+    
+    let policy_section = full_config
+        .get("tool")
+        .and_then(|t| t.get("py-license-auditor"))
+        .and_then(|p| p.get("policy"))
+        .ok_or_else(|| anyhow::anyhow!("Missing policy section in built-in config"))?;
+    
+    let policy: LicensePolicy = policy_section.clone().try_into()
         .with_context(|| format!("Failed to parse built-in {} policy", policy_name))?;
     
     Ok(policy)

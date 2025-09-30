@@ -1,0 +1,30 @@
+# Corporate License Policy
+# Conservative policy for proprietary software development
+# Usage: py-license-auditor --policy corporate
+# Init:  py-license-auditor --init corporate
+
+[tool.py-license-auditor]
+format = "json"
+include_unknown = true
+fail_on_violations = true
+
+[tool.py-license-auditor.policy]
+name = "Corporate License Policy"
+description = "Strict policy for proprietary software development"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC"]
+patterns = ["BSD-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = ["GPL-3.0", "AGPL-3.0", "GPL-2.0"]
+patterns = ["GPL-*", "AGPL-*", "LGPL-*"]
+
+[tool.py-license-auditor.policy.review_required]
+exact = ["MPL-2.0"]
+patterns = []
+
+[[tool.py-license-auditor.policy.exceptions]]
+name = "legacy-package"
+version = "1.0.0"
+reason = "Legacy dependency, approved by legal team"

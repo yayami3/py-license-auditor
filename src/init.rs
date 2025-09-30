@@ -1,0 +1,199 @@
+use anyhow::Result;
+use std::fs;
+use std::path::Path;
+
+#[derive(Debug, Clone)]
+pub enum InitPreset {
+    Personal,
+    Corporate,
+    Ci,
+}
+
+pub fn generate_config(preset: InitPreset) -> Result<()> {
+    let pyproject_path = Path::new("pyproject.toml");
+    
+    if !pyproject_path.exists() {
+        return Err(anyhow::anyhow!(
+            "pyproject.toml not found. Please run 'uv init' first to create a project."
+        ));
+    }
+    
+    add_license_config_to_existing(preset)?;
+    println!("✅ Added [tool.py-license-auditor] section to pyproject.toml");
+    
+    Ok(())
+}
+
+fn add_license_config_to_existing(preset: InitPreset) -> Result<()> {
+    let config_content = get_preset_config(preset);
+    let existing_content = fs::read_to_string("pyproject.toml")?;
+    
+    // Parse existing TOML
+    let mut doc = existing_content.parse::<toml_edit::DocumentMut>()?;
+    
+    // Parse embedded config to extract tool section
+    let embedded_doc: toml::Value = toml::from_str(config_content)?;
+    let tool_section = embedded_doc
+        .get("tool")
+        .and_then(|t| t.get("py-license-auditor"))
+        .ok_or_else(|| anyhow::anyhow!("Invalid preset config format"))?;
+    
+    // Ensure tool table exists
+    if !doc.contains_key("tool") {
+        doc["tool"] = toml_edit::Item::Table(toml_edit::Table::new());
+    }
+    
+    // Convert and add license config
+    let tool_item = toml_value_to_edit_item(tool_section)?;
+    if let Some(tool_table) = doc["tool"].as_table_mut() {
+        tool_table["py-license-auditor"] = tool_item;
+    }
+    
+    fs::write("pyproject.toml", doc.to_string())?;
+    Ok(())
+}
+
+fn get_preset_config(preset: InitPreset) -> &'static str {
+    match preset {
+        InitPreset::Personal => include_str!("../examples/personal.toml"),
+        InitPreset::Corporate => include_str!("../examples/corporate.toml"),
+        InitPreset::Ci => include_str!("../examples/ci.toml"),
+    }
+}
+
+fn toml_value_to_edit_item(value: &toml::Value) -> Result<toml_edit::Item> {
+    match value {
+        toml::Value::String(s) => Ok(toml_edit::value(s.as_str())),
+        toml::Value::Integer(i) => Ok(toml_edit::value(*i)),
+        toml::Value::Float(f) => Ok(toml_edit::value(*f)),
+        toml::Value::Boolean(b) => Ok(toml_edit::value(*b)),
+        toml::Value::Array(arr) => {
+            let mut edit_arr = toml_edit::Array::new();
+            for item in arr {
+                match item {
+                    toml::Value::String(s) => edit_arr.push(s.as_str()),
+                    toml::Value::Table(table) => {
+                        // Handle array of tables (like exceptions)
+                        let mut inline_table = toml_edit::InlineTable::new();
+                        for (key, val) in table {
+                            match val {
+                                toml::Value::String(s) => {
+                                    inline_table.insert(key, s.as_str().into());
+                                }
+                                _ => return Err(anyhow::anyhow!("Unsupported table value type in array")),
+                            }
+                        }
+                        edit_arr.push(toml_edit::Value::InlineTable(inline_table));
+                    }
+                    _ => return Err(anyhow::anyhow!("Unsupported array item type: {:?}", item)),
+                }
+            }
+            Ok(toml_edit::Item::Value(edit_arr.into()))
+        }
+        toml::Value::Table(table) => {
+            let mut edit_table = toml_edit::Table::new();
+            for (key, val) in table {
+                edit_table[key] = toml_value_to_edit_item(val)?;
+            }
+            Ok(toml_edit::Item::Table(edit_table))
+        }
+        _ => Err(anyhow::anyhow!("Unsupported TOML value type")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_add_config_to_existing_file() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let original_dir = env::current_dir()?;
+        
+        env::set_current_dir(&temp_dir)?;
+        
+        // Create existing pyproject.toml (uv-style)
+        let existing_content = r#"
+[project]
+name = "test-project"
+version = "0.1.0"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+"#;
+        fs::write("pyproject.toml", existing_content)?;
+        
+        generate_config(InitPreset::Corporate)?;
+        
+        let content = fs::read_to_string("pyproject.toml")?;
+        assert!(content.contains("name = \"test-project\""));  // Existing content preserved
+        assert!(content.contains("tool.py-license-auditor"));  // New section added
+        assert!(content.contains("Corporate License Policy"));
+        
+        env::set_current_dir(original_dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_error_when_no_pyproject_toml() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let original_dir = env::current_dir()?;
+        
+        env::set_current_dir(&temp_dir)?;
+        
+        let result = generate_config(InitPreset::Personal);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("uv init"));
+        
+        env::set_current_dir(original_dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_all_presets() -> Result<()> {
+        // Test each preset in separate temp directories
+        let presets = [
+            (InitPreset::Personal, "Permissive License Policy"),
+            (InitPreset::Corporate, "Corporate License Policy"), 
+            (InitPreset::Ci, "Strict License Policy"),
+        ];
+        
+        for (preset, expected_policy) in presets {
+            let temp_dir = TempDir::new()?;
+            let original_dir = env::current_dir()?;
+            
+            env::set_current_dir(&temp_dir)?;
+            
+            // Create pyproject.toml
+            fs::write("pyproject.toml", "[project]\nname = \"test\"")?;
+            
+            let result = generate_config(preset);
+            assert!(result.is_ok());
+            
+            let content = fs::read_to_string("pyproject.toml")?;
+            assert!(content.contains("tool.py-license-auditor"));
+            assert!(content.contains(expected_policy));
+            
+            env::set_current_dir(original_dir)?;
+            // temp_dir is automatically cleaned up when dropped
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_consistency() {
+        // Test that embedded configs are valid TOML
+        let personal_config = include_str!("../examples/personal.toml");
+        let corporate_config = include_str!("../examples/corporate.toml");
+        let ci_config = include_str!("../examples/ci.toml");
+        
+        assert!(toml::from_str::<toml::Value>(personal_config).is_ok());
+        assert!(toml::from_str::<toml::Value>(corporate_config).is_ok());
+        assert!(toml::from_str::<toml::Value>(ci_config).is_ok());
+    }
+}

@@ -1,0 +1,81 @@
+# Comprehensive License Policy Example
+# Demonstrates all available configuration options
+
+[tool.py-license-auditor]
+# Output format: table, json, toml, csv
+format = "json"
+
+# Include packages without license information
+include_unknown = true
+
+# Fail build on license violations
+fail_on_violations = true
+
+# Enable license violation checking
+check_violations = true
+
+# Output file (optional)
+# output = "license-report.json"
+
+[tool.py-license-auditor.policy]
+name = "Comprehensive License Policy"
+description = "Example policy showing all configuration options"
+
+# Exact license matches (case-sensitive)
+allowed_licenses = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC"
+]
+
+# Pattern-based matching using glob patterns
+allowed_patterns = [
+    "BSD-*"  # Matches BSD-2-Clause, BSD-3-Clause, etc.
+]
+
+# Strictly forbidden licenses
+forbidden_licenses = [
+    "GPL-3.0",
+    "AGPL-3.0"
+]
+
+# Pattern-based forbidden licenses
+forbidden_patterns = [
+    "GPL-*",    # Matches all GPL variants
+    "AGPL-*"    # Matches all AGPL variants
+]
+
+# Licenses requiring manual review
+review_required = [
+    "MPL-2.0",
+    "LGPL-2.1"
+]
+
+# Pattern-based review requirements
+review_patterns = [
+    "LGPL-*"
+]
+
+# Package-specific exceptions
+[[tool.py-license-auditor.exceptions]]
+name = "legacy-package"
+version = "1.0.0"
+reason = "Approved by legal team for legacy compatibility"
+
+[[tool.py-license-auditor.exceptions]]
+name = "special-tool"
+# version = "*"  # Any version (default if omitted)
+reason = "Essential development tool, GPL acceptable"
+
+# Advanced configuration examples
+[tool.py-license-auditor.advanced]
+# Custom license normalization (future feature)
+# normalize_licenses = true
+
+# Classifier priority over license field (future feature)  
+# prefer_classifiers = true
+
+# Ignore development dependencies (future feature)
+# ignore_dev_dependencies = false

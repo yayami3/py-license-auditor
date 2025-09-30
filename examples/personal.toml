@@ -1,0 +1,25 @@
+# Permissive License Policy
+# Balanced policy for open source projects
+# Usage: py-license-auditor --policy permissive
+# Init:  py-license-auditor --init personal
+
+[tool.py-license-auditor]
+format = "table"
+include_unknown = false
+fail_on_violations = false
+
+[tool.py-license-auditor.policy]
+name = "Permissive License Policy"
+description = "Balanced policy for open source projects"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0"]
+patterns = ["BSD-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = []
+patterns = []
+
+[tool.py-license-auditor.policy.review_required]
+exact = ["GPL-2.0", "GPL-3.0", "LGPL-2.1", "LGPL-3.0", "AGPL-3.0"]
+patterns = ["GPL-*", "LGPL-*", "AGPL-*"]
