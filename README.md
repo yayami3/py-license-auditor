@@ -43,6 +43,37 @@ cargo install --path .
 
 ### Quick Start
 ```bash
+# 1. Setup your uv project
+uv init my-project
+cd my-project
+uv add requests pandas
+
+# 2. Configure license policy (one-time setup)
+py-license-auditor --init corporate
+
+# 3. Run license audit
+uv sync
+py-license-auditor
+```
+
+### Configuration Setup
+
+#### Initialize with Built-in Policies
+```bash
+# For corporate/enterprise projects
+py-license-auditor --init corporate
+
+# For personal/open source projects  
+py-license-auditor --init personal
+
+# For CI/CD environments (strict)
+py-license-auditor --init ci
+```
+
+This creates a `[tool.py-license-auditor]` section in your `pyproject.toml` with appropriate settings.
+
+### Basic Usage
+```bash
 # Auto-detect .venv in current directory
 py-license-auditor
 
@@ -58,8 +89,8 @@ py-license-auditor --output licenses.json
 # JSON (default)
 py-license-auditor --format json
 
-# TOML
-py-license-auditor --format toml
+# Table for terminal viewing
+py-license-auditor --format table
 
 # CSV for spreadsheets
 py-license-auditor --format csv
@@ -70,25 +101,22 @@ py-license-auditor --format csv
 # Include packages without license info
 py-license-auditor --include-unknown
 
+# Check for policy violations
+py-license-auditor --check-violations
+
+# Fail build on forbidden licenses (for CI/CD)
+py-license-auditor --fail-on-violations
+
 # Combine options
 py-license-auditor --format csv --output report.csv --include-unknown
 ```
 
-### License Violation Detection
+### Command-line Policy Override
 ```bash
-# Use built-in policies (no setup required)
+# Override configured policy temporarily
 py-license-auditor --policy corporate --check-violations
 py-license-auditor --policy permissive --check-violations  
 py-license-auditor --policy strict --check-violations
-
-# Use custom policy file
-py-license-auditor --policy-file policy.toml --check-violations
-
-# Fail build on forbidden licenses (for CI/CD)
-py-license-auditor --policy corporate --check-violations --fail-on-violations
-
-# Generate compliance report with violations
-py-license-auditor --policy strict --check-violations --output compliance.json
 ```
 
 ## 📊 Output Example
@@ -137,8 +165,6 @@ py-license-auditor --policy strict --check-violations --output compliance.json
       }
     ]
   }
-    }
-  }
 }
 ```
 
@@ -157,42 +183,48 @@ Three ready-to-use policies are included:
 
 ```bash
 # Corporate: Conservative policy for proprietary software
-py-license-auditor --policy corporate --check-violations
+py-license-auditor --init corporate
 
-# Permissive: Balanced policy for open source projects  
-py-license-auditor --policy permissive --check-violations
+# Personal: Balanced policy for open source projects  
+py-license-auditor --init personal
 
-# Strict: Very restrictive - only MIT, Apache-2.0, BSD-3-Clause
-py-license-auditor --policy strict --check-violations
+# CI: Very restrictive - only MIT, Apache-2.0, BSD-3-Clause
+py-license-auditor --init ci
 ```
 
 | Policy | Allowed | Forbidden | Review Required |
 |--------|---------|-----------|-----------------|
 | **Corporate** | MIT, Apache-2.0, BSD-* | GPL-*, AGPL-*, LGPL-* | MPL-2.0 |
-| **Permissive** | MIT, Apache-2.0, BSD-*, MPL-2.0 | None | GPL-*, AGPL-* |
-| **Strict** | MIT, Apache-2.0, BSD-3-Clause | GPL-*, AGPL-*, LGPL-*, MPL-2.0 | ISC, BSD-* |
+| **Personal** | MIT, Apache-2.0, BSD-*, MPL-2.0 | None | GPL-*, AGPL-* |
+| **CI** | MIT, Apache-2.0, BSD-3-Clause | GPL-*, AGPL-*, MPL-2.0 | ISC, BSD-* |
 
-### Custom Policy File Format
+### Custom Policy Configuration
 
-Create a `policy.toml` file to define your license compliance rules:
+After running `py-license-auditor --init`, you can customize the generated configuration in `pyproject.toml`:
 
 ```toml
-name = "Corporate License Policy"
-description = "License policy for proprietary software development"
+[tool.py-license-auditor]
+format = "json"
+include_unknown = true
+fail_on_violations = true
 
-[allowed_licenses]
+[tool.py-license-auditor.policy]
+name = "Custom License Policy"
+description = "Tailored policy for our project"
+
+[tool.py-license-auditor.policy.allowed_licenses]
 exact = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC"]
 patterns = ["BSD-*"]
 
-[forbidden_licenses]
+[tool.py-license-auditor.policy.forbidden_licenses]
 exact = ["GPL-3.0", "AGPL-3.0"]
 patterns = ["GPL-*", "AGPL-*"]
 
-[review_required]
-exact = ["MPL-2.0", "LGPL-2.1"]
+[tool.py-license-auditor.policy.review_required]
+exact = ["MPL-2.0"]
 patterns = ["LGPL-*"]
 
-[[exceptions]]
+[[tool.py-license-auditor.policy.exceptions]]
 name = "legacy-package"
 version = "1.0.0"
 reason = "Approved by legal team for legacy compatibility"
@@ -226,26 +258,22 @@ Automate license checking in your deployment pipeline.
 
 ```yaml
 # GitHub Actions example
-- name: Check license compliance
-  run: |
-    py-license-auditor --policy corporate --check-violations --fail-on-violations
+- name: Setup License Policy
+  run: py-license-auditor --init corporate
+  
+- name: License Check  
+  run: py-license-auditor --check-violations --fail-on-violations
     
-- name: Generate license report
-  run: |
-    py-license-auditor --format json --output license-report.json
-```
-
-```bash
-# Basic license extraction
-py-license-auditor --format json > licenses.json
+- name: Generate License Report
+  run: py-license-auditor --format json --output license-report.json
 ```
 
 ### Dependency Auditing
 Understand your project's license obligations and risks.
 
 ```bash
-# Focus on non-OSI licenses that need manual review
-py-license-auditor --format json | jq '.summary.license_types.non_osi'
+# Focus on potential issues
+py-license-auditor --check-violations --format json
 ```
 
 ## 🔍 License Categories
