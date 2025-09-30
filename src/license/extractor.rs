@@ -151,6 +151,11 @@ fn parse_metadata_content(content: &str) -> (Option<String>, Vec<String>) {
             if !value.trim().is_empty() && value.trim() != "UNKNOWN" {
                 license = Some(value.trim().to_string());
             }
+        } else if let Some(value) = line.strip_prefix("License-Expression: ") {
+            // Modern PEP 639 License-Expression field (preferred over License field)
+            if !value.trim().is_empty() && value.trim() != "UNKNOWN" {
+                license = Some(value.trim().to_string());
+            }
         } else if let Some(value) = line.strip_prefix("Classifier: ") {
             if value.contains("License") {
                 classifiers.push(value.trim().to_string());
