@@ -4,6 +4,7 @@ pub mod output;
 pub mod exceptions;
 pub mod config;
 pub mod uv_lock;
+pub mod init;
 
 // Re-export main types for easy access
 pub use license::{PackageLicense, LicenseReport, LicenseSummary, LicenseTypes};

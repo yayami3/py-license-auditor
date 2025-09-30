@@ -10,7 +10,11 @@ pub enum InitPreset {
 }
 
 pub fn generate_config(preset: InitPreset) -> Result<()> {
-    let pyproject_path = Path::new("pyproject.toml");
+    generate_config_at_path("pyproject.toml", preset)
+}
+
+pub fn generate_config_at_path<P: AsRef<Path>>(path: P, preset: InitPreset) -> Result<()> {
+    let pyproject_path = path.as_ref();
     
     if !pyproject_path.exists() {
         return Err(anyhow::anyhow!(
@@ -18,15 +22,15 @@ pub fn generate_config(preset: InitPreset) -> Result<()> {
         ));
     }
     
-    add_license_config_to_existing(preset)?;
+    add_license_config_to_existing(pyproject_path, preset)?;
     println!("✅ Added [tool.py-license-auditor] section to pyproject.toml");
     
     Ok(())
 }
 
-fn add_license_config_to_existing(preset: InitPreset) -> Result<()> {
+fn add_license_config_to_existing<P: AsRef<Path>>(path: P, preset: InitPreset) -> Result<()> {
     let config_content = get_preset_config(preset);
-    let existing_content = fs::read_to_string("pyproject.toml")?;
+    let existing_content = fs::read_to_string(&path)?;
     
     // Parse existing TOML
     let mut doc = existing_content.parse::<toml_edit::DocumentMut>()?;
@@ -49,7 +53,7 @@ fn add_license_config_to_existing(preset: InitPreset) -> Result<()> {
         tool_table["py-license-auditor"] = tool_item;
     }
     
-    fs::write("pyproject.toml", doc.to_string())?;
+    fs::write(&path, doc.to_string())?;
     Ok(())
 }
 
@@ -104,17 +108,14 @@ fn toml_value_to_edit_item(value: &toml::Value) -> Result<toml_edit::Item> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
     use tempfile::TempDir;
 
     #[test]
     fn test_add_config_to_existing_file() -> Result<()> {
         let temp_dir = TempDir::new()?;
-        let original_dir = env::current_dir()?;
-        
-        env::set_current_dir(&temp_dir)?;
         
         // Create existing pyproject.toml (uv-style)
+        let pyproject_path = temp_dir.path().join("pyproject.toml");
         let existing_content = r#"
 [project]
 name = "test-project"
@@ -125,31 +126,27 @@ dependencies = []
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 "#;
-        fs::write("pyproject.toml", existing_content)?;
+        fs::write(&pyproject_path, existing_content)?;
         
-        generate_config(InitPreset::Corporate)?;
+        generate_config_at_path(&pyproject_path, InitPreset::Corporate)?;
         
-        let content = fs::read_to_string("pyproject.toml")?;
+        let content = fs::read_to_string(&pyproject_path)?;
         assert!(content.contains("name = \"test-project\""));  // Existing content preserved
         assert!(content.contains("tool.py-license-auditor"));  // New section added
         assert!(content.contains("Corporate License Policy"));
         
-        env::set_current_dir(original_dir)?;
         Ok(())
     }
 
     #[test]
     fn test_error_when_no_pyproject_toml() -> Result<()> {
         let temp_dir = TempDir::new()?;
-        let original_dir = env::current_dir()?;
+        let pyproject_path = temp_dir.path().join("pyproject.toml");
         
-        env::set_current_dir(&temp_dir)?;
-        
-        let result = generate_config(InitPreset::Personal);
+        let result = generate_config_at_path(&pyproject_path, InitPreset::Personal);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("uv init"));
         
-        env::set_current_dir(original_dir)?;
         Ok(())
     }
 
@@ -164,22 +161,17 @@ build-backend = "hatchling.build"
         
         for (preset, expected_policy) in presets {
             let temp_dir = TempDir::new()?;
-            let original_dir = env::current_dir()?;
-            
-            env::set_current_dir(&temp_dir)?;
+            let pyproject_path = temp_dir.path().join("pyproject.toml");
             
             // Create pyproject.toml
-            fs::write("pyproject.toml", "[project]\nname = \"test\"")?;
+            fs::write(&pyproject_path, "[project]\nname = \"test\"")?;
             
-            let result = generate_config(preset);
+            let result = generate_config_at_path(&pyproject_path, preset);
             assert!(result.is_ok());
             
-            let content = fs::read_to_string("pyproject.toml")?;
+            let content = fs::read_to_string(&pyproject_path)?;
             assert!(content.contains("tool.py-license-auditor"));
             assert!(content.contains(expected_policy));
-            
-            env::set_current_dir(original_dir)?;
-            // temp_dir is automatically cleaned up when dropped
         }
         
         Ok(())

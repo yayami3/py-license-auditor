@@ -8,6 +8,7 @@ use py_license_auditor::license::{extract_licenses_auto, create_report};
 use py_license_auditor::output::format_table_output;
 use py_license_auditor::exceptions::handle_interactive_exceptions;
 use py_license_auditor::config::{BuiltinPolicy, load_config};
+use py_license_auditor::init;
 
 
 #[derive(Parser)]
@@ -62,6 +63,10 @@ struct Cli {
     /// Interactive mode for handling violations
     #[arg(long)]
     interactive: bool,
+
+    /// Initialize configuration file with preset
+    #[arg(long)]
+    init: Option<InitPreset>,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -72,8 +77,25 @@ enum OutputFormat {
     Csv,
 }
 
+#[derive(Clone, ValueEnum)]
+enum InitPreset {
+    Personal,
+    Corporate,
+    Ci,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Handle init command first
+    if let Some(preset) = cli.init {
+        let init_preset = match preset {
+            InitPreset::Personal => init::InitPreset::Personal,
+            InitPreset::Corporate => init::InitPreset::Corporate,
+            InitPreset::Ci => init::InitPreset::Ci,
+        };
+        return init::generate_config(init_preset);
+    }
     
     // Load configuration from pyproject.toml
     let config = load_config()?;
