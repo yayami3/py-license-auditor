@@ -21,13 +21,13 @@ pub struct PackageLicense {
     pub metadata_source: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct LicenseTypes {
     pub osi_approved: IndexMap<String, usize>,
     pub non_osi: IndexMap<String, usize>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct LicenseSummary {
     pub total_packages: usize,
     pub with_license: usize,
@@ -35,7 +35,7 @@ pub struct LicenseSummary {
     pub license_types: LicenseTypes,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct LicenseReport {
     pub packages: Vec<PackageLicense>,
     pub summary: LicenseSummary,
@@ -224,7 +224,7 @@ fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
     licenses
 }
 
-fn normalize_license_name(license: &str) -> String {
+pub fn normalize_license_name(license: &str) -> String {
     let license = license.trim();
     let license_lower = license.to_lowercase();
     

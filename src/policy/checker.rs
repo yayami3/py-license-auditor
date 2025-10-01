@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use super::matcher::ViolationLevel;
 use super::config::LicensePolicy;
-use crate::license::PackageLicense;
+use crate::license::{PackageLicense, normalize_license_name};
 
 /// 違反の詳細情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,28 +50,31 @@ impl LicensePolicy {
                 }
             };
             
+            // ライセンス名を正規化
+            let normalized_license = normalize_license_name(license);
+            
             // 違反レベルをチェック
-            let violation_level = self.check_license(license);
+            let violation_level = self.check_license(&normalized_license);
             
             // Allowedでない場合は違反として記録
             if violation_level != ViolationLevel::Allowed {
                 let matched_rule = match violation_level {
-                    ViolationLevel::Forbidden => self.forbidden_licenses.find_match(license),
-                    ViolationLevel::ReviewRequired => self.review_required.find_match(license),
+                    ViolationLevel::Forbidden => self.forbidden_licenses.find_match(&normalized_license),
+                    ViolationLevel::ReviewRequired => self.review_required.find_match(&normalized_license),
                     _ => None,
                 };
                 
                 let message = match violation_level {
-                    ViolationLevel::Forbidden => format!("License '{}' is forbidden by policy", license),
-                    ViolationLevel::ReviewRequired => format!("License '{}' requires review", license),
-                    ViolationLevel::Unknown => format!("License '{}' is not in allowed list", license),
+                    ViolationLevel::Forbidden => format!("License '{}' is forbidden by policy", normalized_license),
+                    ViolationLevel::ReviewRequired => format!("License '{}' requires review", normalized_license),
+                    ViolationLevel::Unknown => format!("License '{}' is not in allowed list", normalized_license),
                     ViolationLevel::Allowed => unreachable!(),
                 };
                 
                 violations.push(Violation {
                     package_name: package.name.clone(),
                     package_version: package.version.clone(),
-                    license: Some(license.clone()),
+                    license: Some(normalized_license),
                     violation_level,
                     matched_rule,
                     message,
