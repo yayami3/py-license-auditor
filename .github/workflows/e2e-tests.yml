@@ -39,7 +39,7 @@ jobs:
         ${{ github.workspace }}/target/release/py-license-auditor --format json
         
         # Test policy setup
-        ${{ github.workspace }}/target/release/py-license-auditor --init corporate
+        ${{ github.workspace }}/target/release/py-license-auditor --init green
         
         # Test policy checking
         ${{ github.workspace }}/target/release/py-license-auditor

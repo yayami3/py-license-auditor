@@ -2,7 +2,7 @@ use std::process::Command;
 use std::fs;
 
 #[test]
-#[ignore = "Requires uv environment with actual package installation"]
+#[ignore = "Requires actual uv environment with installed packages in site-packages"]
 fn test_with_preconfigured_project() {
     let binary_path = env!("CARGO_BIN_EXE_py-license-auditor");
     
