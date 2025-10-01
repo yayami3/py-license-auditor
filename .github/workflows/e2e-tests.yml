@@ -41,5 +41,13 @@ jobs:
         # Test policy setup
         ${{ github.workspace }}/target/release/py-license-auditor --init green
         
-        # Test policy checking
+        # Test policy checking (expect violations with green policy)
+        set +e
         ${{ github.workspace }}/target/release/py-license-auditor
+        exit_code=$?
+        if [ $exit_code -eq 1 ]; then
+          echo "✅ Policy violations detected as expected (exit code 1)"
+        else
+          echo "❌ Unexpected exit code: $exit_code"
+          exit 1
+        fi
