@@ -42,6 +42,11 @@ rayon = "1.8"
 [dev-dependencies]
 tempfile = "3.0"
 
+# E2E test configuration
+[[test]]
+name = "e2e"
+path = "tests/e2e/mod.rs"
+
 [lib]
 name = "py_license_auditor"
 crate-type = ["rlib"]

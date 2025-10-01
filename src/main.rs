@@ -117,8 +117,6 @@ fn main() -> Result<()> {
         }
     });
     
-    let include_unknown = cli.include_unknown || config.include_unknown.unwrap_or(false);
-
     // Generate output
     let output = match format {
         OutputFormat::Json => serde_json::to_string_pretty(&report)?,

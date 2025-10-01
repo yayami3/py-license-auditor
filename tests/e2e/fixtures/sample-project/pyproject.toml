@@ -1,0 +1,30 @@
+[project]
+name = "sample-project"
+version = "0.1.0"
+description = "Sample project for E2E testing"
+dependencies = [
+    "requests>=2.32.0",
+    "click>=8.3.0",
+]
+
+[tool.py-license-auditor]
+format = "json"
+include_unknown = true
+check_violations = true
+fail_on_violations = false
+
+[tool.py-license-auditor.policy]
+name = "Test Policy"
+description = "Policy for E2E testing"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-3-Clause"]
+patterns = ["BSD-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = ["GPL-3.0"]
+patterns = ["GPL-*"]
+
+[tool.py-license-auditor.policy.review_required]
+exact = ["MPL-2.0"]
+patterns = []
