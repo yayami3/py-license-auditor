@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-10-02
+
+### 🚦 Traffic Light Policy System
+
+#### Changed
+- **BREAKING**: Policy names changed from `personal/corporate/ci` to `green/yellow/red`
+- **Intuitive naming**: Traffic light system for clear risk indication
+- **Consistent fail behavior**: Green/Yellow fail on violations, Red continues for audit
+
+#### Policy Mapping
+- `green` (was `corporate`): Safe for commercial use - MIT, Apache, BSD, ISC only
+- `yellow` (was `ci`): Balanced policy - adds LGPL, MPL weak copyleft licenses  
+- `red` (was `personal`): Audit mode - all licenses allowed, `fail_on_violations = false`
+
+#### Migration Guide
+```bash
+# Before (v0.4.0)
+py-license-auditor --init corporate
+
+# After (v0.4.1)  
+py-license-auditor --init green
+```
+
+### 🎯 Policy Clarity
+- **Green**: Enterprise/commercial development (strictest)
+- **Yellow**: Balanced development (moderate restrictions)
+- **Red**: Audit/OSS development (information gathering)
+
 ## [0.4.0] - 2025-10-02
 
 ### 🎉 Major Architecture Redesign

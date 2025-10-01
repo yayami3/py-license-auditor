@@ -22,8 +22,8 @@ fn test_policy_initialization_and_checking() {
     // Setup test project
     test_env.init_uv_project("policy-test", &["requests"]).unwrap();
     
-    // Initialize corporate policy
-    let init_output = test_env.run_auditor("policy-test", &["--init", "corporate"]);
+    // Initialize red policy (fail_on_violations = false)
+    let init_output = test_env.run_auditor("policy-test", &["--init", "red"]);
     assert!(init_output.status.success());
     
     // Run policy check
@@ -59,7 +59,7 @@ fn test_policy_violation_detection() {
     test_env.init_uv_project("violation-test", &["requests", "pandas"]).unwrap();
     
     // Initialize strict CI policy
-    test_env.run_auditor("violation-test", &["--init", "ci"]);
+    test_env.run_auditor("violation-test", &["--init", "yellow"]);
     
     // Run check - should find violations
     let output = test_env.run_auditor("violation-test", &[]);

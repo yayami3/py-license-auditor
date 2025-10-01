@@ -1,0 +1,26 @@
+# Red License Policy
+# Audit/visibility mode - all licenses allowed for information gathering
+# Usage: py-license-auditor --init red
+# Then:  py-license-auditor
+
+[tool.py-license-auditor]
+format = "table"
+include_unknown = false
+check_violations = true
+fail_on_violations = false
+
+[tool.py-license-auditor.policy]
+name = "Red License Policy"
+description = "Audit mode - all licenses allowed, used for information gathering and OSS development"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "LGPL-2.1", "LGPL-3.0", "MPL-2.0"]
+patterns = ["BSD-*", "LGPL-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = []
+patterns = []
+
+[tool.py-license-auditor.policy.review_required]
+exact = ["GPL-2.0", "GPL-3.0", "AGPL-3.0"]
+patterns = ["GPL-*", "AGPL-*"]

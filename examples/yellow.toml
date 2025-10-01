@@ -1,0 +1,26 @@
+# Yellow License Policy
+# Balanced policy - permissive + weak copyleft licenses
+# Usage: py-license-auditor --init yellow
+# Then:  py-license-auditor
+
+[tool.py-license-auditor]
+format = "json"
+include_unknown = false
+fail_on_violations = true
+check_violations = true
+
+[tool.py-license-auditor.policy]
+name = "Yellow License Policy"
+description = "Balanced policy - permissive licenses + weak copyleft (LGPL, MPL)"
+
+[tool.py-license-auditor.policy.allowed_licenses]
+exact = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "LGPL-2.1", "LGPL-3.0", "MPL-2.0"]
+patterns = ["BSD-*", "LGPL-*"]
+
+[tool.py-license-auditor.policy.forbidden_licenses]
+exact = ["GPL-2.0", "GPL-3.0", "AGPL-3.0", "CDDL-1.0", "EPL-1.0", "EPL-2.0"]
+patterns = ["GPL-*", "AGPL-*", "CDDL-*", "EPL-*"]
+
+[tool.py-license-auditor.policy.review_required]
+exact = []
+patterns = []

@@ -49,7 +49,7 @@ cd my-project
 uv add requests pandas
 
 # 2. Configure license policy (one-time setup)
-py-license-auditor --init corporate
+py-license-auditor --init green
 
 # 3. Run license audit
 uv sync
@@ -60,14 +60,14 @@ py-license-auditor
 
 #### Initialize with Built-in Policies
 ```bash
-# For corporate/enterprise projects
-py-license-auditor --init corporate
+# For commercial/enterprise projects (safest)
+py-license-auditor --init green
 
-# For personal/open source projects  
-py-license-auditor --init personal
+# For balanced development (permissive + weak copyleft)
+py-license-auditor --init yellow
 
-# For CI/CD environments (strict)
-py-license-auditor --init ci
+# For audit/OSS development (information gathering)
+py-license-auditor --init red
 ```
 
 This creates a `[tool.py-license-auditor]` section in your `pyproject.toml` with appropriate settings.
@@ -171,21 +171,21 @@ click,8.1.7,BSD-3-Clause,"License :: OSI Approved :: BSD License",METADATA
 Three ready-to-use policies are included:
 
 ```bash
-# Corporate: Conservative policy for proprietary software
-py-license-auditor --init corporate
+# Green: Safe for commercial use - only permissive licenses
+py-license-auditor --init green
 
-# Personal: Balanced policy for open source projects  
-py-license-auditor --init personal
+# Yellow: Balanced policy - permissive + weak copyleft
+py-license-auditor --init yellow
 
-# CI: Very restrictive - only MIT, Apache-2.0, BSD-3-Clause
-py-license-auditor --init ci
+# Red: Audit mode - all licenses allowed for information gathering
+py-license-auditor --init red
 ```
 
-| Policy | Allowed | Forbidden | Review Required |
-|--------|---------|-----------|-----------------|
-| **Corporate** | MIT, Apache-2.0, BSD-* | GPL-*, AGPL-*, LGPL-* | MPL-2.0 |
-| **Personal** | MIT, Apache-2.0, BSD-*, MPL-2.0 | None | GPL-*, AGPL-* |
-| **CI** | MIT, Apache-2.0, BSD-3-Clause | GPL-*, AGPL-*, MPL-2.0 | ISC, BSD-* |
+| Policy | Allowed | Forbidden | Review Required | Fails on Violation |
+|--------|---------|-----------|-----------------|-------------------|
+| **Green** | MIT, Apache-2.0, BSD-*, ISC | GPL-*, AGPL-*, LGPL-*, MPL-2.0 | None | Yes |
+| **Yellow** | MIT, Apache-2.0, BSD-*, ISC, LGPL-*, MPL-2.0 | GPL-*, AGPL-* | None | Yes |
+| **Red** | MIT, Apache-2.0, BSD-*, ISC, LGPL-*, MPL-2.0 | None | GPL-*, AGPL-* | No |
 
 ### Custom Policy Configuration
 
@@ -248,7 +248,7 @@ Automate license checking in your deployment pipeline.
 ```yaml
 # GitHub Actions example
 - name: Setup License Policy
-  run: py-license-auditor --init corporate
+  run: py-license-auditor --init green
   
 - name: License Check  
   run: py-license-auditor

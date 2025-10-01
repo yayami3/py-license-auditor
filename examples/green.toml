@@ -1,6 +1,6 @@
-# Corporate License Policy
-# Conservative policy for proprietary software development
-# Usage: py-license-auditor --init corporate
+# Green License Policy
+# Safe for commercial/enterprise use - only permissive licenses
+# Usage: py-license-auditor --init green
 # Then:  py-license-auditor
 
 [tool.py-license-auditor]
@@ -10,19 +10,19 @@ check_violations = true
 fail_on_violations = true
 
 [tool.py-license-auditor.policy]
-name = "Corporate License Policy"
-description = "Strict policy for proprietary software development"
+name = "Green License Policy"
+description = "Safe for commercial use - only permissive licenses (MIT, Apache, BSD)"
 
 [tool.py-license-auditor.policy.allowed_licenses]
 exact = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC"]
 patterns = ["BSD-*"]
 
 [tool.py-license-auditor.policy.forbidden_licenses]
-exact = ["GPL-3.0", "AGPL-3.0", "GPL-2.0"]
+exact = ["GPL-3.0", "AGPL-3.0", "GPL-2.0", "LGPL-2.1", "LGPL-3.0", "MPL-2.0"]
 patterns = ["GPL-*", "AGPL-*", "LGPL-*"]
 
 [tool.py-license-auditor.policy.review_required]
-exact = ["MPL-2.0"]
+exact = []
 patterns = []
 
 [[tool.py-license-auditor.policy.exceptions]]

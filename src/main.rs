@@ -54,9 +54,9 @@ enum OutputFormat {
 
 #[derive(Clone, ValueEnum)]
 enum InitPreset {
-    Personal,
-    Corporate,
-    Ci,
+    Green,
+    Yellow,
+    Red,
 }
 
 fn main() -> Result<()> {
@@ -65,9 +65,9 @@ fn main() -> Result<()> {
     // Handle init command first
     if let Some(preset) = cli.init {
         let init_preset = match preset {
-            InitPreset::Personal => init::InitPreset::Personal,
-            InitPreset::Corporate => init::InitPreset::Corporate,
-            InitPreset::Ci => init::InitPreset::Ci,
+            InitPreset::Green => init::InitPreset::Green,
+            InitPreset::Yellow => init::InitPreset::Yellow,
+            InitPreset::Red => init::InitPreset::Red,
         };
         return init::generate_config(init_preset);
     }

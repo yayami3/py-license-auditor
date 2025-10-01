@@ -4,9 +4,9 @@ use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub enum InitPreset {
-    Personal,
-    Corporate,
-    Ci,
+    Green,
+    Yellow,
+    Red,
 }
 
 pub fn generate_config(preset: InitPreset) -> Result<()> {
@@ -59,9 +59,9 @@ fn add_license_config_to_existing<P: AsRef<Path>>(path: P, preset: InitPreset) -
 
 fn get_preset_config(preset: InitPreset) -> &'static str {
     match preset {
-        InitPreset::Personal => include_str!("../examples/personal.toml"),
-        InitPreset::Corporate => include_str!("../examples/corporate.toml"),
-        InitPreset::Ci => include_str!("../examples/ci.toml"),
+        InitPreset::Red => include_str!("../examples/red.toml"),
+        InitPreset::Green => include_str!("../examples/green.toml"),
+        InitPreset::Yellow => include_str!("../examples/yellow.toml"),
     }
 }
 
@@ -128,12 +128,12 @@ build-backend = "hatchling.build"
 "#;
         fs::write(&pyproject_path, existing_content)?;
         
-        generate_config_at_path(&pyproject_path, InitPreset::Corporate)?;
+        generate_config_at_path(&pyproject_path, InitPreset::Green)?;
         
         let content = fs::read_to_string(&pyproject_path)?;
         assert!(content.contains("name = \"test-project\""));  // Existing content preserved
         assert!(content.contains("tool.py-license-auditor"));  // New section added
-        assert!(content.contains("Corporate License Policy"));
+        assert!(content.contains("Green License Policy"));
         
         Ok(())
     }
@@ -143,7 +143,7 @@ build-backend = "hatchling.build"
         let temp_dir = TempDir::new()?;
         let pyproject_path = temp_dir.path().join("pyproject.toml");
         
-        let result = generate_config_at_path(&pyproject_path, InitPreset::Personal);
+        let result = generate_config_at_path(&pyproject_path, InitPreset::Red);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("uv init"));
         
@@ -154,9 +154,9 @@ build-backend = "hatchling.build"
     fn test_all_presets() -> Result<()> {
         // Test each preset in separate temp directories
         let presets = [
-            (InitPreset::Personal, "Permissive License Policy"),
-            (InitPreset::Corporate, "Corporate License Policy"), 
-            (InitPreset::Ci, "Strict License Policy"),
+            (InitPreset::Red, "Red License Policy"),
+            (InitPreset::Green, "Green License Policy"), 
+            (InitPreset::Yellow, "Yellow License Policy"),
         ];
         
         for (preset, expected_policy) in presets {
@@ -180,12 +180,12 @@ build-backend = "hatchling.build"
     #[test]
     fn test_config_consistency() {
         // Test that embedded configs are valid TOML
-        let personal_config = include_str!("../examples/personal.toml");
-        let corporate_config = include_str!("../examples/corporate.toml");
-        let ci_config = include_str!("../examples/ci.toml");
+        let red_config = include_str!("../examples/red.toml");
+        let green_config = include_str!("../examples/green.toml");
+        let yellow_config = include_str!("../examples/yellow.toml");
         
-        assert!(toml::from_str::<toml::Value>(personal_config).is_ok());
-        assert!(toml::from_str::<toml::Value>(corporate_config).is_ok());
-        assert!(toml::from_str::<toml::Value>(ci_config).is_ok());
+        assert!(toml::from_str::<toml::Value>(red_config).is_ok());
+        assert!(toml::from_str::<toml::Value>(green_config).is_ok());
+        assert!(toml::from_str::<toml::Value>(yellow_config).is_ok());
     }
 }
