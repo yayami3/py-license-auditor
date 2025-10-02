@@ -1,4 +1,4 @@
-use crate::license::{LicenseReport, PackageLicense};
+use crate::license::{LicenseReport, PackageLicense, get_effective_license};
 use crate::policy::ViolationLevel;
 
 fn format_with_padding(text: &str, width: usize) -> String {
@@ -29,8 +29,8 @@ enum PackageStatus {
 }
 
 fn get_package_status(package: &PackageLicense, report: &LicenseReport) -> PackageStatus {
-    // Check if no license info
-    if package.license.is_none() {
+    // Check if no license info (including inferred from classifiers)
+    if get_effective_license(package).is_none() {
         return PackageStatus::Unknown;
     }
     
@@ -106,8 +106,8 @@ fn format_package_table(packages: &[PackageLicense], show_status: bool, report: 
     for package in packages {
         let name = truncate(&package.name, 15);
         let version = truncate(package.version.as_deref().unwrap_or("unknown"), 7);
-        let license = package.license.as_deref().unwrap_or("(unknown)");
-        let license = truncate(license, 11);
+        let license_str = get_effective_license(package).unwrap_or("(unknown)".to_string());
+        let license = truncate(&license_str, 11);
         
         if show_status {
             let status = match get_package_status(package, report.unwrap_or(&LicenseReport::default())) {
@@ -119,7 +119,7 @@ fn format_package_table(packages: &[PackageLicense], show_status: bool, report: 
             output.push_str(&format!("│ {:<15} │ {:<7} │ {:<11} │ {} │\n", 
                                    name, version, license, formatted_status));
         } else {
-            let issue = if package.license.is_none() { "No license info" } else { "Requires review" };
+            let issue = if get_effective_license(package).is_none() { "No license info" } else { "Requires review" };
             let issue = truncate(issue, 15);
             output.push_str(&format!("│ {:<15} │ {:<7} │ {:<11} │ {:<15} │\n", 
                                    name, version, license, issue));
@@ -152,8 +152,8 @@ fn format_issue_table(issues: &[(PackageLicense, String)]) -> String {
     for (package, issue) in issues {
         let name = truncate(&package.name, 15);
         let version = truncate(package.version.as_deref().unwrap_or("unknown"), 7);
-        let license = package.license.as_deref().unwrap_or("(unknown)");
-        let license = truncate(license, 11);
+        let license_str = get_effective_license(package).unwrap_or("(unknown)".to_string());
+        let license = truncate(&license_str, 11);
         let issue = truncate(issue, 15);
         
         output.push_str(&format!("│ {:<15} │ {:<7} │ {:<11} │ {:<15} │\n", 

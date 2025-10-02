@@ -153,7 +153,7 @@ pub fn extract_licenses_auto(path: Option<PathBuf>, include_unknown: bool) -> Re
 pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
     let total_packages = packages.len();
     let with_license = packages.iter()
-        .filter(|p| p.license.is_some() || !p.license_classifiers.is_empty())
+        .filter(|p| get_effective_license(p).is_some())
         .count();
     let without_license = total_packages - with_license;
 
@@ -302,6 +302,22 @@ fn is_osi_approved_license(license: &str) -> bool {
         license.contains(osi_license) || 
         license.to_lowercase().contains(&osi_license.to_lowercase())
     })
+}
+
+pub fn get_effective_license(package: &PackageLicense) -> Option<String> {
+    // Return license field if available
+    if let Some(license) = &package.license {
+        return Some(license.clone());
+    }
+    
+    // Infer from classifiers if license field is null
+    for classifier in &package.license_classifiers {
+        if let Some(license_name) = extract_license_from_classifier(classifier) {
+            return Some(license_name);
+        }
+    }
+    
+    None
 }
 
 fn extract_license_from_classifier(classifier: &str) -> Option<String> {
