@@ -1,0 +1,6 @@
+# Coverage configuration
+[build]
+rustflags = ["-C", "instrument-coverage"]
+
+[env]
+LLVM_PROFILE_FILE = "target/coverage/cargo-test-%p-%m.profraw"
