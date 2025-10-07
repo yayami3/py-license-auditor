@@ -35,15 +35,15 @@ jobs:
         cd e2e-test-project
         uv add requests click
         
-        # Test license extraction
-        ${{ github.workspace }}/target/release/py-license-auditor --format json
+        # Test license extraction with check subcommand
+        ${{ github.workspace }}/target/release/py-license-auditor check --format json
         
-        # Test policy setup
-        ${{ github.workspace }}/target/release/py-license-auditor --init green
+        # Test policy setup with init subcommand
+        ${{ github.workspace }}/target/release/py-license-auditor init green
         
         # Test policy checking (expect violations with green policy)
         set +e
-        ${{ github.workspace }}/target/release/py-license-auditor
+        ${{ github.workspace }}/target/release/py-license-auditor check
         exit_code=$?
         if [ $exit_code -eq 1 ]; then
           echo "✅ Policy violations detected as expected (exit code 1)"
@@ -51,3 +51,9 @@ jobs:
           echo "❌ Unexpected exit code: $exit_code"
           exit 1
         fi
+        
+        # Test fix subcommand
+        ${{ github.workspace }}/target/release/py-license-auditor fix --dry-run
+        
+        # Test config subcommand
+        ${{ github.workspace }}/target/release/py-license-auditor config --validate
