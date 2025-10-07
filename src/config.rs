@@ -25,7 +25,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            format: Some("json".to_string()),
+            format: Some("table".to_string()),  // Default to table
             include_unknown: Some(false),
             check_violations: Some(false),
             fail_on_violations: Some(false),
@@ -127,7 +127,7 @@ mod tests {
         
         let config = load_config().unwrap();
         assert_eq!(config.policy, None);
-        assert_eq!(config.format, Some("json".to_string()));
+        assert_eq!(config.format, Some("table".to_string()));  // Updated to table
         assert_eq!(config.include_unknown, Some(false));
         assert_eq!(config.check_violations, Some(false));
         assert_eq!(config.fail_on_violations, Some(false));
