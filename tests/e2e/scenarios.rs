@@ -68,3 +68,35 @@ fn test_policy_violation_detection() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("violations found") || stderr.contains("License violations"));
 }
+
+#[test]
+fn test_fix_subcommand() {
+    let test_env = TestProject::new();
+    
+    test_env.init_uv_project("fix-test", &["requests"]).unwrap();
+    
+    // Initialize green policy (strict)
+    let init_output = test_env.run_auditor("fix-test", &["init", "green"]);
+    assert!(init_output.status.success());
+    
+    // Test dry-run mode
+    let dry_run_output = test_env.run_auditor("fix-test", &["fix", "--dry-run"]);
+    assert!(dry_run_output.status.success());
+    let stdout = String::from_utf8_lossy(&dry_run_output.stdout);
+    assert!(stdout.contains("Would add") || stdout.contains("No violations"));
+}
+
+#[test]
+fn test_global_options() {
+    let test_env = TestProject::new();
+    
+    test_env.init_uv_project("global-test", &["click"]).unwrap();
+    
+    // Test quiet mode
+    let quiet_output = test_env.run_auditor("global-test", &["--quiet", "init", "green"]);
+    assert!(quiet_output.status.success());
+    
+    // Test config validation
+    let validate_output = test_env.run_auditor("global-test", &["config", "--validate"]);
+    assert!(validate_output.status.success());
+}

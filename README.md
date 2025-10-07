@@ -49,11 +49,11 @@ cd my-project
 uv add requests pandas
 
 # 2. Configure license policy (one-time setup)
-py-license-auditor --init green
+py-license-auditor init green
 
 # 3. Run license audit
 uv sync
-py-license-auditor
+py-license-auditor check
 ```
 
 ### Configuration Setup
@@ -61,13 +61,13 @@ py-license-auditor
 #### Initialize with Built-in Policies
 ```bash
 # For commercial/enterprise projects (safest)
-py-license-auditor --init green
+py-license-auditor init green
 
 # For balanced development (permissive + weak copyleft)
-py-license-auditor --init yellow
+py-license-auditor init yellow
 
 # For audit/OSS development (information gathering)
-py-license-auditor --init red
+py-license-auditor init red
 ```
 
 This creates a `[tool.py-license-auditor]` section in your `pyproject.toml` with appropriate settings.
@@ -75,37 +75,42 @@ This creates a `[tool.py-license-auditor]` section in your `pyproject.toml` with
 ### Basic Usage
 ```bash
 # Auto-detect .venv in current directory
-py-license-auditor
+py-license-auditor check
 
 # Specify site-packages directory
-py-license-auditor --path /path/to/site-packages
+py-license-auditor check /path/to/site-packages
 
 # Save to file
-py-license-auditor --output licenses.json
+py-license-auditor check --output licenses.json
 ```
 
 ### Output Formats
 ```bash
 # JSON (default)
-py-license-auditor --format json
+py-license-auditor check --format json
 
 # Table for terminal viewing
-py-license-auditor --format table
+py-license-auditor check --format table
 
 # CSV for spreadsheets
-py-license-auditor --format csv
+py-license-auditor check --format csv
 ```
 
 ### Advanced Options
 ```bash
 # Include packages without license info
-py-license-auditor --include-unknown
+py-license-auditor check --include-unknown
 
 # Combine options
-py-license-auditor --format csv --output report.csv --include-unknown
+py-license-auditor check --format csv --output report.csv --include-unknown
 
-# Interactive mode for handling violations
-py-license-auditor --interactive
+# Automatic violation fixing
+py-license-auditor fix --dry-run  # Preview changes
+py-license-auditor fix            # Apply exceptions
+
+# Global options
+py-license-auditor --quiet check
+py-license-auditor --verbose check
 ```
 
 ## 📊 Output Example
@@ -239,7 +244,7 @@ Generate comprehensive reports for legal review and compliance auditing.
 
 ```bash
 # Generate compliance report
-py-license-auditor --format json --output compliance-report.json
+py-license-auditor check --format json --output compliance-report.json
 ```
 
 ### CI/CD Integration
@@ -248,13 +253,13 @@ Automate license checking in your deployment pipeline.
 ```yaml
 # GitHub Actions example
 - name: Setup License Policy
-  run: py-license-auditor --init green
+  run: py-license-auditor init green
   
 - name: License Check  
-  run: py-license-auditor
+  run: py-license-auditor check
     
 - name: Generate License Report
-  run: py-license-auditor --format json --output license-report.json
+  run: py-license-auditor check --format json --output license-report.json
 ```
 
 ### Dependency Auditing
@@ -262,7 +267,7 @@ Understand your project's license obligations and risks.
 
 ```bash
 # Focus on potential issues
-py-license-auditor --format json
+py-license-auditor check --format json
 ```
 
 ## 🔍 License Categories
