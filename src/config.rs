@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use anyhow::{Context, Result};
-use crate::policy::LicensePolicy;
+use crate::policy::{LicensePolicy, PackageException};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -66,6 +66,54 @@ pub fn load_config() -> Result<Config> {
     Ok(Config::default())
 }
 
+/// Add exceptions to pyproject.toml
+pub fn add_exceptions_to_config(exceptions: Vec<PackageException>) -> Result<()> {
+    let pyproject_path = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("pyproject.toml");
+    
+    if !pyproject_path.exists() {
+        return Err(anyhow::anyhow!("pyproject.toml not found. Run 'py-license-auditor init <policy>' first."));
+    }
+    
+    let content = fs::read_to_string(&pyproject_path)
+        .with_context(|| format!("Failed to read pyproject.toml: {}", pyproject_path.display()))?;
+    
+    let mut pyproject: toml::Value = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse pyproject.toml: {}", pyproject_path.display()))?;
+    
+    // Navigate to [tool.py-license-auditor.policy.exceptions]
+    let tool = pyproject.get_mut("tool")
+        .ok_or_else(|| anyhow::anyhow!("No [tool] section found in pyproject.toml"))?;
+    
+    let py_license_auditor = tool.get_mut("py-license-auditor")
+        .ok_or_else(|| anyhow::anyhow!("No [tool.py-license-auditor] section found"))?;
+    
+    let policy = py_license_auditor.get_mut("policy")
+        .ok_or_else(|| anyhow::anyhow!("No policy configuration found"))?;
+    
+    // Get or create exceptions array
+    let exceptions_array = policy.get_mut("exceptions")
+        .and_then(|v| v.as_array_mut())
+        .ok_or_else(|| anyhow::anyhow!("Invalid exceptions format"))?;
+    
+    // Add new exceptions
+    for exception in exceptions {
+        let exception_value = toml::Value::try_from(&exception)
+            .context("Failed to serialize exception")?;
+        exceptions_array.push(exception_value);
+    }
+    
+    // Write back to file
+    let updated_content = toml::to_string_pretty(&pyproject)
+        .context("Failed to serialize updated pyproject.toml")?;
+    
+    fs::write(&pyproject_path, updated_content)
+        .with_context(|| format!("Failed to write pyproject.toml: {}", pyproject_path.display()))?;
+    
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,6 +160,11 @@ patterns = []
 [tool.py-license-auditor.policy.review_required]
 exact = []
 patterns = []
+
+[[tool.py-license-auditor.policy.exceptions]]
+name = "test-package"
+version = "1.0.0"
+reason = "Test exception"
 "#;
         fs::write("pyproject.toml", pyproject_content).unwrap();
         
@@ -155,6 +208,11 @@ patterns = ["GPL-*"]
 [tool.py-license-auditor.policy.review_required]
 exact = ["MPL-2.0"]
 patterns = []
+
+[[tool.py-license-auditor.policy.exceptions]]
+name = "legacy-package"
+version = "1.0.0"
+reason = "Legacy dependency, approved by legal team"
 "#;
         fs::write("pyproject.toml", pyproject_content).unwrap();
         

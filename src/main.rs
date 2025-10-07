@@ -206,29 +206,57 @@ fn handle_fix(
     _format: Option<OutputFormat>,
 ) -> Result<()> {
     // Load configuration
-    let config = load_config()?;
+    let config = py_license_auditor::config::load_config()?;
+    
+    if config.policy.is_none() {
+        eprintln!("No policy configured. Run 'py-license-auditor init <policy>' first.");
+        std::process::exit(1);
+    }
+    
+    let policy = config.policy.unwrap();
     
     // Extract packages
     let include_unknown = config.include_unknown.unwrap_or(false);
     let packages = extract_licenses_auto(path, include_unknown)?;
     
     // Check for violations
-    if let Some(policy) = &config.policy {
-        let violations = policy.detect_violations(&packages);
-        
-        if violations.total > 0 {
-            if dry_run {
-                println!("Would add {} exceptions to pyproject.toml", violations.total);
-                // TODO: Show what would be added
-            } else {
-                // TODO: Actually add exceptions to pyproject.toml
-                println!("Added {} exceptions to pyproject.toml", violations.total);
-            }
-        } else {
-            println!("No violations found, nothing to fix");
+    let violations = policy.detect_violations(&packages);
+    
+    if violations.total == 0 {
+        println!("No violations found, nothing to fix");
+        return Ok(());
+    }
+    
+    // Create exceptions from violations
+    let mut exceptions = Vec::new();
+    for detail in &violations.details {
+        let exception = py_license_auditor::policy::PackageException {
+            name: detail.package_name.clone(),
+            version: detail.package_version.clone(),
+            reason: format!("Auto-generated exception for {} license", 
+                          detail.license.as_deref().unwrap_or("unknown")),
+        };
+        exceptions.push(exception);
+    }
+    
+    if dry_run {
+        println!("Would add {} exceptions to pyproject.toml:", exceptions.len());
+        for exception in &exceptions {
+            println!("  - {} {} ({})", exception.name, 
+                    exception.version.as_deref().unwrap_or("*"), 
+                    exception.reason);
         }
-    } else {
-        println!("No policy configured, run 'py-license-auditor init <policy>' first");
+        return Ok(());
+    }
+    
+    // Add exceptions to pyproject.toml
+    py_license_auditor::config::add_exceptions_to_config(exceptions.clone())?;
+    
+    println!("Added {} exceptions to pyproject.toml:", exceptions.len());
+    for exception in &exceptions {
+        println!("  ✅ {} {} - {}", exception.name, 
+                exception.version.as_deref().unwrap_or("*"), 
+                exception.reason);
     }
     
     Ok(())
