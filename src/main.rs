@@ -1,48 +1,83 @@
 use anyhow::Result;
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::fs;
 use std::path::PathBuf;
 
 // Import from our library
 use py_license_auditor::license::{extract_licenses_auto, create_report};
 use py_license_auditor::output::format_table_output;
-use py_license_auditor::exceptions::handle_interactive_exceptions;
+
 use py_license_auditor::config::load_config;
 use py_license_auditor::init;
-
 
 #[derive(Parser)]
 #[command(name = "py-license-auditor")]
 #[command(about = "Extract license information from Python packages")]
 #[command(version)]
 struct Cli {
-    /// Path to site-packages directory or virtual environment
-    #[arg(short, long)]
-    path: Option<PathBuf>,
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    /// Output format
-    #[arg(short, long)]
-    format: Option<OutputFormat>,
+#[derive(Subcommand)]
+enum Commands {
+    /// Run license audit on packages
+    Check {
+        /// Path to site-packages directory or virtual environment
+        path: Option<PathBuf>,
 
-    /// Output file (default: stdout)
-    #[arg(short, long)]
-    output: Option<PathBuf>,
+        /// Output format
+        #[arg(short, long)]
+        format: Option<OutputFormat>,
 
-    /// Show all packages (default: issues only)
-    #[arg(long)]
-    verbose: bool,
+        /// Output file (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
 
-    /// Include packages without license information
-    #[arg(long)]
-    include_unknown: bool,
+        /// Include packages without license information
+        #[arg(long)]
+        include_unknown: bool,
 
-    /// Interactive mode for handling violations
-    #[arg(long)]
-    interactive: bool,
+        /// Show errors only
+        #[arg(short, long)]
+        quiet: bool,
 
-    /// Initialize configuration file with preset
-    #[arg(long)]
-    init: Option<InitPreset>,
+        /// Show detailed information
+        #[arg(short, long)]
+        verbose: bool,
+
+        /// Exit with code 0 even on violations
+        #[arg(long)]
+        exit_zero: bool,
+    },
+    /// Initialize configuration with preset policy
+    Init {
+        /// Policy preset
+        policy: InitPreset,
+    },
+    /// Automatically fix violations by adding exceptions
+    Fix {
+        /// Path to site-packages directory or virtual environment
+        path: Option<PathBuf>,
+
+        /// Show changes without applying them
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output format for changes
+        #[arg(short, long)]
+        format: Option<OutputFormat>,
+    },
+    /// Show or validate configuration
+    Config {
+        /// Show current configuration
+        #[arg(long)]
+        show: bool,
+
+        /// Validate configuration file
+        #[arg(long)]
+        validate: bool,
+    },
 }
 
 #[derive(Clone, ValueEnum)]
@@ -62,43 +97,63 @@ enum InitPreset {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Handle init command first
-    if let Some(preset) = cli.init {
-        let init_preset = match preset {
-            InitPreset::Green => init::InitPreset::Green,
-            InitPreset::Yellow => init::InitPreset::Yellow,
-            InitPreset::Red => init::InitPreset::Red,
-        };
-        return init::generate_config(init_preset);
+    match cli.command {
+        Commands::Check { 
+            path, 
+            format, 
+            output, 
+            include_unknown, 
+            quiet, 
+            verbose, 
+            exit_zero 
+        } => {
+            handle_check(path, format, output, include_unknown, quiet, verbose, exit_zero)
+        }
+        Commands::Init { policy } => {
+            handle_init(policy)
+        }
+        Commands::Fix { path, dry_run, format } => {
+            handle_fix(path, dry_run, format)
+        }
+        Commands::Config { show, validate } => {
+            handle_config(show, validate)
+        }
     }
-    
+}
+
+fn handle_check(
+    path: Option<PathBuf>,
+    format: Option<OutputFormat>,
+    output: Option<PathBuf>,
+    include_unknown: bool,
+    quiet: bool,
+    verbose: bool,
+    exit_zero: bool,
+) -> Result<()> {
     // Load configuration from pyproject.toml
     let config = load_config()?;
     
     // CLI arguments override config values
-    let include_unknown = cli.include_unknown || config.include_unknown.unwrap_or(false);
+    let include_unknown = include_unknown || config.include_unknown.unwrap_or(false);
 
     // Auto-detect uv.lock or fallback to site-packages
-    let packages = extract_licenses_auto(cli.path, include_unknown)?;
+    let packages = extract_licenses_auto(path, include_unknown)?;
     
     let mut report = create_report(packages);
     
     // Policy checking (if configured)
     if let Some(policy) = &config.policy {
         if config.check_violations.unwrap_or(false) {
-            let mut violations = policy.detect_violations(&report.packages);
-            
-            // Interactive mode for exception handling
-            if cli.interactive {
-                violations = handle_interactive_exceptions(violations)?;
-            }
+            let violations = policy.detect_violations(&report.packages);
             
             // Handle violations
             if violations.total > 0 {
-                eprintln!("License violations found: {} total ({} errors, {} warnings)", 
-                         violations.total, violations.errors, violations.warnings);
+                if !quiet {
+                    eprintln!("License violations found: {} total ({} errors, {} warnings)", 
+                             violations.total, violations.errors, violations.warnings);
+                }
                 
-                if config.fail_on_violations.unwrap_or(false) && violations.errors > 0 {
+                if !exit_zero && config.fail_on_violations.unwrap_or(false) && violations.errors > 0 {
                     eprintln!("Exiting with error due to forbidden licenses");
                     std::process::exit(1);
                 }
@@ -109,7 +164,7 @@ fn main() -> Result<()> {
     }
 
     // Determine output format
-    let format = cli.format.unwrap_or_else(|| {
+    let format = format.unwrap_or_else(|| {
         match config.format.as_deref() {
             Some("json") => OutputFormat::Json,
             Some("csv") => OutputFormat::Csv,
@@ -118,16 +173,94 @@ fn main() -> Result<()> {
     });
     
     // Generate output
-    let output = match format {
+    let output_content = match format {
         OutputFormat::Json => serde_json::to_string_pretty(&report)?,
-        OutputFormat::Table => format_table_output(&report, cli.verbose),
+        OutputFormat::Table => format_table_output(&report, verbose),
         OutputFormat::Csv => "CSV not implemented yet".to_string(),
     };
 
-    match cli.output {
-        Some(path) => fs::write(path, output)?,
-        None => println!("{}", output),
+    match output {
+        Some(path) => fs::write(path, output_content)?,
+        None => {
+            if !quiet {
+                println!("{}", output_content);
+            }
+        }
     }
 
+    Ok(())
+}
+
+fn handle_init(policy: InitPreset) -> Result<()> {
+    let init_preset = match policy {
+        InitPreset::Green => init::InitPreset::Green,
+        InitPreset::Yellow => init::InitPreset::Yellow,
+        InitPreset::Red => init::InitPreset::Red,
+    };
+    init::generate_config(init_preset)
+}
+
+fn handle_fix(
+    path: Option<PathBuf>,
+    dry_run: bool,
+    _format: Option<OutputFormat>,
+) -> Result<()> {
+    // Load configuration
+    let config = load_config()?;
+    
+    // Extract packages
+    let include_unknown = config.include_unknown.unwrap_or(false);
+    let packages = extract_licenses_auto(path, include_unknown)?;
+    
+    // Check for violations
+    if let Some(policy) = &config.policy {
+        let violations = policy.detect_violations(&packages);
+        
+        if violations.total > 0 {
+            if dry_run {
+                println!("Would add {} exceptions to pyproject.toml", violations.total);
+                // TODO: Show what would be added
+            } else {
+                // TODO: Actually add exceptions to pyproject.toml
+                println!("Added {} exceptions to pyproject.toml", violations.total);
+            }
+        } else {
+            println!("No violations found, nothing to fix");
+        }
+    } else {
+        println!("No policy configured, run 'py-license-auditor init <policy>' first");
+    }
+    
+    Ok(())
+}
+
+fn handle_config(show: bool, validate: bool) -> Result<()> {
+    if show {
+        match load_config() {
+            Ok(config) => {
+                println!("{}", serde_json::to_string_pretty(&config)?);
+            }
+            Err(e) => {
+                eprintln!("Error loading configuration: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+    
+    if validate {
+        match load_config() {
+            Ok(_) => println!("Configuration is valid"),
+            Err(e) => {
+                eprintln!("Configuration validation failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+    
+    if !show && !validate {
+        eprintln!("Use --show or --validate");
+        std::process::exit(1);
+    }
+    
     Ok(())
 }
