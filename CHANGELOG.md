@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-10-08
+
+### 🎯 Ruff-like Subcommand Structure
+
+#### Added
+- **BREAKING**: New subcommand-based CLI structure inspired by ruff
+- `check` subcommand: Run license audit on packages (replaces default behavior)
+- `init` subcommand: Initialize configuration with preset policy (replaces `--init`)
+- `fix` subcommand: Automatically add violations as exceptions (replaces `--interactive`)
+- `config` subcommand: Show or validate configuration
+- Global options: `--verbose` and `--quiet` for all subcommands
+- Position argument support for path in `check` and `fix` subcommands
+- `--dry-run` mode for `fix` subcommand to preview changes
+- `--validate` option for `config` subcommand
+- `--exit-zero` option for `check` subcommand (CI-friendly)
+
+#### Changed
+- **BREAKING**: All CLI usage now requires explicit subcommands
+- **BREAKING**: `--init <policy>` → `init <policy>`
+- **BREAKING**: `--interactive` → `fix` subcommand with automatic exception handling
+- **BREAKING**: `--path <path>` → positional argument `[PATH]`
+- Improved error messages and help text
+- Better quiet mode support across all subcommands
+
+#### Migration Guide
+```bash
+# Before (v0.4.x)
+py-license-auditor --init green
+py-license-auditor --format json --output report.json
+py-license-auditor --interactive
+
+# After (v0.5.0)
+py-license-auditor init green
+py-license-auditor check --format json --output report.json
+py-license-auditor fix --dry-run  # Preview changes
+py-license-auditor fix            # Apply exceptions
+```
+
+#### Developer Experience
+- Familiar ruff-like interface for Python developers
+- Clear separation of concerns between subcommands
+- Better discoverability with `py-license-auditor help <command>`
+- Improved CI/CD integration with focused `check` command
+
 ## [0.4.1] - 2025-10-02
 
 ### 🚦 Traffic Light Policy System
