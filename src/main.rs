@@ -179,7 +179,8 @@ fn handle_check(
         match config.format.as_deref() {
             Some("json") => OutputFormat::Json,
             Some("csv") => OutputFormat::Csv,
-            _ => OutputFormat::Table,
+            Some("table") => OutputFormat::Table,
+            _ => OutputFormat::Table,  // Default to table instead of JSON
         }
     });
     
