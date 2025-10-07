@@ -17,6 +17,14 @@ use py_license_auditor::init;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    
+    /// Enable verbose logging
+    #[arg(short, long, global = true)]
+    verbose: bool,
+    
+    /// Suppress non-error output
+    #[arg(short, long, global = true)]
+    quiet: bool,
 }
 
 #[derive(Subcommand)]
@@ -107,16 +115,19 @@ fn main() -> Result<()> {
             verbose, 
             exit_zero 
         } => {
-            handle_check(path, format, output, include_unknown, quiet, verbose, exit_zero)
+            // Global options override subcommand options
+            let final_quiet = cli.quiet || quiet;
+            let final_verbose = cli.verbose || verbose;
+            handle_check(path, format, output, include_unknown, final_quiet, final_verbose, exit_zero)
         }
         Commands::Init { policy } => {
-            handle_init(policy)
+            handle_init(policy, cli.quiet)
         }
         Commands::Fix { path, dry_run, format } => {
-            handle_fix(path, dry_run, format)
+            handle_fix(path, dry_run, format, cli.quiet)
         }
         Commands::Config { show, validate } => {
-            handle_config(show, validate)
+            handle_config(show, validate, cli.quiet)
         }
     }
 }
@@ -191,25 +202,35 @@ fn handle_check(
     Ok(())
 }
 
-fn handle_init(policy: InitPreset) -> Result<()> {
+fn handle_init(policy: InitPreset, quiet: bool) -> Result<()> {
     let init_preset = match policy {
         InitPreset::Green => init::InitPreset::Green,
         InitPreset::Yellow => init::InitPreset::Yellow,
         InitPreset::Red => init::InitPreset::Red,
     };
-    init::generate_config(init_preset)
+    
+    let result = init::generate_config(init_preset);
+    
+    if result.is_ok() && !quiet {
+        println!("✅ Configuration initialized successfully");
+    }
+    
+    result
 }
 
 fn handle_fix(
     path: Option<PathBuf>,
     dry_run: bool,
     _format: Option<OutputFormat>,
+    quiet: bool,
 ) -> Result<()> {
     // Load configuration
     let config = py_license_auditor::config::load_config()?;
     
     if config.policy.is_none() {
-        eprintln!("No policy configured. Run 'py-license-auditor init <policy>' first.");
+        if !quiet {
+            eprintln!("No policy configured. Run 'py-license-auditor init <policy>' first.");
+        }
         std::process::exit(1);
     }
     
@@ -223,7 +244,9 @@ fn handle_fix(
     let violations = policy.detect_violations(&packages);
     
     if violations.total == 0 {
-        println!("No violations found, nothing to fix");
+        if !quiet {
+            println!("No violations found, nothing to fix");
+        }
         return Ok(());
     }
     
@@ -240,11 +263,13 @@ fn handle_fix(
     }
     
     if dry_run {
-        println!("Would add {} exceptions to pyproject.toml:", exceptions.len());
-        for exception in &exceptions {
-            println!("  - {} {} ({})", exception.name, 
-                    exception.version.as_deref().unwrap_or("*"), 
-                    exception.reason);
+        if !quiet {
+            println!("Would add {} exceptions to pyproject.toml:", exceptions.len());
+            for exception in &exceptions {
+                println!("  - {} {} ({})", exception.name, 
+                        exception.version.as_deref().unwrap_or("*"), 
+                        exception.reason);
+            }
         }
         return Ok(());
     }
@@ -252,42 +277,56 @@ fn handle_fix(
     // Add exceptions to pyproject.toml
     py_license_auditor::config::add_exceptions_to_config(exceptions.clone())?;
     
-    println!("Added {} exceptions to pyproject.toml:", exceptions.len());
-    for exception in &exceptions {
-        println!("  ✅ {} {} - {}", exception.name, 
-                exception.version.as_deref().unwrap_or("*"), 
-                exception.reason);
+    if !quiet {
+        println!("Added {} exceptions to pyproject.toml:", exceptions.len());
+        for exception in &exceptions {
+            println!("  ✅ {} {} - {}", exception.name, 
+                    exception.version.as_deref().unwrap_or("*"), 
+                    exception.reason);
+        }
     }
     
     Ok(())
 }
 
-fn handle_config(show: bool, validate: bool) -> Result<()> {
+fn handle_config(show: bool, validate: bool, quiet: bool) -> Result<()> {
+    if !show && !validate {
+        if !quiet {
+            eprintln!("Use --show or --validate");
+        }
+        std::process::exit(1);
+    }
+    
     if show {
-        match load_config() {
+        match py_license_auditor::config::load_config() {
             Ok(config) => {
-                println!("{}", serde_json::to_string_pretty(&config)?);
+                if !quiet {
+                    println!("{}", serde_json::to_string_pretty(&config)?);
+                }
             }
             Err(e) => {
-                eprintln!("Error loading configuration: {}", e);
+                if !quiet {
+                    eprintln!("Error loading configuration: {}", e);
+                }
                 std::process::exit(1);
             }
         }
     }
     
     if validate {
-        match load_config() {
-            Ok(_) => println!("Configuration is valid"),
+        match py_license_auditor::config::load_config() {
+            Ok(_) => {
+                if !quiet {
+                    println!("✅ Configuration is valid");
+                }
+            }
             Err(e) => {
-                eprintln!("Configuration validation failed: {}", e);
+                if !quiet {
+                    eprintln!("❌ Configuration validation failed: {}", e);
+                }
                 std::process::exit(1);
             }
         }
-    }
-    
-    if !show && !validate {
-        eprintln!("Use --show or --validate");
-        std::process::exit(1);
     }
     
     Ok(())
