@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-10-08
+
+### 🎨 Improved User Experience
+
+#### Changed
+- **Default output format**: Changed from JSON to Table for better readability
+- **Concise output**: `py-license-auditor check` now shows clean, formatted table by default
+- **JSON still available**: Use `--format json` when JSON output is needed
+
+#### Fixed
+- **E2E tests**: Updated GitHub Actions workflow for new subcommand structure
+- **CLI compatibility**: Fixed test failures with new default format
+
+#### Developer Experience
+- More user-friendly default output for terminal usage
+- Better first-time user experience with readable table format
+- Maintains programmatic access via explicit `--format json`
+
 ## [0.5.0] - 2025-10-08
 
 ### 🎯 Ruff-like Subcommand Structure
