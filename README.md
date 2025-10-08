@@ -13,7 +13,7 @@
 - 🚀 **Built for Speed**: Both tools are written in Rust for maximum performance
 - 🎯 **uv-Native**: Deep integration with `uv.lock` and uv workflows  
 - 🔧 **Zero Config**: Works out of the box with uv projects
-- ⚡ **Fast Workflow**: `uv sync && py-license-auditor` - that's it!
+- ⚡ **Fast Workflow**: `uv sync && py-license-auditor check` - that's it!
 
 ## 🚀 Installation
 
@@ -24,7 +24,7 @@ uv tool install py-license-auditor
 
 # Use in any uv project
 cd my-uv-project
-uv tool run py-license-auditor
+uv tool run py-license-auditor check
 ```
 
 ### Manual Installation
@@ -74,7 +74,7 @@ This creates a `[tool.py-license-auditor]` section in your `pyproject.toml` with
 
 ### Basic Usage
 ```bash
-# Auto-detect .venv in current directory
+# Auto-detect .venv in current directory (shows table format by default)
 py-license-auditor check
 
 # Specify site-packages directory
@@ -86,11 +86,11 @@ py-license-auditor check --output licenses.json
 
 ### Output Formats
 ```bash
-# JSON (default)
-py-license-auditor check --format json
-
-# Table for terminal viewing
+# Table for terminal viewing (default)
 py-license-auditor check --format table
+
+# JSON for programmatic use
+py-license-auditor check --format json
 
 # CSV for spreadsheets
 py-license-auditor check --format csv
@@ -114,6 +114,22 @@ py-license-auditor --verbose check
 ```
 
 ## 📊 Output Example
+
+### Table Format (Default)
+```
+📦 License Summary (20 packages)
+✅ 20 with licenses  ⚠️ 0 unknown  🚫 2 violations
+
+🔍 Issues Found:
+┌─────────────────┬─────────┬─────────────┬─────────────────┐
+│ Package         │ Version │ License     │ Problem         │
+├─────────────────┼─────────┼─────────────┼─────────────────┤
+│ some-gpl-lib    │ 2.1.0   │ GPL-3.0     │ Not allowed     │
+│ another-package │ 1.0.0   │ AGPL-3.0    │ Not allowed     │
+└─────────────────┴─────────┴─────────────┴─────────────────┘
+
+💡 Run with --verbose to see all 20 packages
+```
 
 ### JSON Format
 ```json
@@ -177,13 +193,13 @@ Three ready-to-use policies are included:
 
 ```bash
 # Green: Safe for commercial use - only permissive licenses
-py-license-auditor --init green
+py-license-auditor init green
 
 # Yellow: Balanced policy - permissive + weak copyleft
-py-license-auditor --init yellow
+py-license-auditor init yellow
 
 # Red: Audit mode - all licenses allowed for information gathering
-py-license-auditor --init red
+py-license-auditor init red
 ```
 
 | Policy | Allowed | Forbidden | Review Required | Fails on Violation |
@@ -194,7 +210,7 @@ py-license-auditor --init red
 
 ### Custom Policy Configuration
 
-After running `py-license-auditor --init`, you can customize the generated configuration in `pyproject.toml`:
+After running `py-license-auditor init`, you can customize the generated configuration in `pyproject.toml`:
 
 ```toml
 [tool.py-license-auditor]
