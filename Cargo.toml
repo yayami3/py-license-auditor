@@ -1,6 +1,6 @@
 [package]
 name = "py-license-auditor"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 description = "Fast license auditor for uv projects - Extract and analyze license information with uv.lock integration"
 authors = ["yayami3 <116920988+yayami3@users.noreply.github.com>"]
