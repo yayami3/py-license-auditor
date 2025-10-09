@@ -207,12 +207,15 @@ fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
         }
     }
 
-    // Fallback to License field if no classifiers
+    // Only use License field if no classifiers found AND license field is not a copyright statement
     if licenses.is_empty() {
         if let Some(license) = &package.license {
-            let normalized_name = normalize_license_name(license);
-            let is_osi = is_osi_approved_license(&normalized_name);
-            licenses.push((normalized_name, is_osi));
+            // Skip copyright statements - they're not actual license names
+            if !license.starts_with("Copyright") && !license.starts_with("=") && license.len() >= 3 {
+                let normalized_name = normalize_license_name(license);
+                let is_osi = is_osi_approved_license(&normalized_name);
+                licenses.push((normalized_name, is_osi));
+            }
         }
     }
 
@@ -331,4 +334,98 @@ fn extract_license_from_classifier(classifier: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_license_classifiers_priority_over_copyright() {
+        // Test case: package with copyright in license field but BSD in classifiers
+        let package = PackageLicense {
+            name: "example-lib".to_string(),
+            version: Some("1.2.3".to_string()),
+            license: Some("Copyright (c) 2025, Example Corp.".to_string()),
+            license_classifiers: vec!["License :: OSI Approved :: BSD License".to_string()],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let licenses = get_license_info(&package);
+        
+        // Should extract BSD-3-Clause from classifier, not Unknown from copyright
+        assert_eq!(licenses.len(), 1);
+        assert_eq!(licenses[0].0, "BSD-3-Clause");
+        assert_eq!(licenses[0].1, true); // OSI approved
+    }
+
+    #[test]
+    fn test_copyright_fallback_when_no_classifiers() {
+        // Test case: package with only copyright statement and no classifiers
+        let package = PackageLicense {
+            name: "legacy-package".to_string(),
+            version: Some("0.9.0".to_string()),
+            license: Some("Copyright (c) 2025, Legacy Developer.".to_string()),
+            license_classifiers: vec![],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let licenses = get_license_info(&package);
+        
+        // Should be Unknown since copyright statements are not license names
+        assert_eq!(licenses.len(), 1);
+        assert_eq!(licenses[0].0, "Unknown");
+        assert_eq!(licenses[0].1, false);
+    }
+
+    #[test]
+    fn test_valid_license_field_when_no_classifiers() {
+        // Test case: package with valid license field and no classifiers
+        let package = PackageLicense {
+            name: "simple-tool".to_string(),
+            version: Some("2.0.1".to_string()),
+            license: Some("MIT".to_string()),
+            license_classifiers: vec![],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let licenses = get_license_info(&package);
+        
+        // Should use license field when it's not a copyright statement
+        assert_eq!(licenses.len(), 1);
+        assert_eq!(licenses[0].0, "MIT");
+        assert_eq!(licenses[0].1, true); // MIT is OSI approved
+    }
+
+    #[test]
+    fn test_extract_license_from_classifier() {
+        // Test various classifier formats
+        assert_eq!(
+            extract_license_from_classifier("License :: OSI Approved :: MIT License"),
+            Some("MIT License".to_string())
+        );
+        
+        assert_eq!(
+            extract_license_from_classifier("License :: OSI Approved :: BSD License"),
+            Some("BSD License".to_string())
+        );
+        
+        assert_eq!(
+            extract_license_from_classifier("License :: OSI Approved"),
+            Some("OSI Approved".to_string())
+        );
+        
+        assert_eq!(
+            extract_license_from_classifier("Not a license classifier"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_normalize_bsd_license() {
+        // Test BSD License normalization
+        assert_eq!(normalize_license_name("BSD License"), "BSD-3-Clause");
+        assert_eq!(normalize_license_name("BSD 3-Clause License"), "BSD-3-Clause");
+        assert_eq!(normalize_license_name("BSD 2-Clause License"), "BSD-2-Clause");
+    }
 }
