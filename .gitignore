@@ -20,6 +20,8 @@ Thumbs.db
 # Logs
 *.log
 
+# LLVM Coverage files
+*.profraw
 
 # Python build artifacts
 *.egg-info/
