@@ -4,7 +4,7 @@
 # Then:  py-license-auditor
 
 [tool.py-license-auditor]
-format = "json"
+format = "table"
 include_unknown = true
 check_violations = true
 fail_on_violations = true
