@@ -9,6 +9,20 @@ use crate::uv_lock::UvLockParser;
 
 pub mod extractor;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct LicenseInfo {
+    pub name: Option<String>,
+    pub is_osi_approved: bool,
+    pub source: LicenseSource,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LicenseSource {
+    Classifier(String),
+    LicenseField,
+    Unknown,
+}
+
 // Re-export from extractor
 pub use extractor::extract_all_licenses;
 
@@ -196,35 +210,13 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
 }
 
 fn get_license_info(package: &PackageLicense) -> Vec<(String, bool)> {
-    let mut licenses = Vec::new();
-
-    // Prioritize classifiers (more standardized)
-    for classifier in &package.license_classifiers {
-        if let Some(license_name) = extract_license_from_classifier(classifier) {
-            let normalized_name = normalize_license_name(&license_name);
-            let is_osi = classifier.contains("OSI Approved");
-            licenses.push((normalized_name, is_osi));
-        }
+    let license_info = extract_license_info(package);
+    
+    if let Some(name) = license_info.name {
+        vec![(name, license_info.is_osi_approved)]
+    } else {
+        vec![("Unknown".to_string(), false)]
     }
-
-    // Only use License field if no classifiers found AND license field is not a copyright statement
-    if licenses.is_empty() {
-        if let Some(license) = &package.license {
-            // Skip copyright statements - they're not actual license names
-            if !license.starts_with("Copyright") && !license.starts_with("=") && license.len() >= 3 {
-                let normalized_name = normalize_license_name(license);
-                let is_osi = is_osi_approved_license(&normalized_name);
-                licenses.push((normalized_name, is_osi));
-            }
-        }
-    }
-
-    // If no license information found, add "Unknown"
-    if licenses.is_empty() {
-        licenses.push(("Unknown".to_string(), false));
-    }
-
-    licenses
 }
 
 pub fn normalize_license_name(license: &str) -> String {
@@ -307,20 +299,43 @@ fn is_osi_approved_license(license: &str) -> bool {
     })
 }
 
-pub fn get_effective_license(package: &PackageLicense) -> Option<String> {
-    // Return license field if available
-    if let Some(license) = &package.license {
-        return Some(license.clone());
-    }
-    
-    // Infer from classifiers if license field is null
+pub fn extract_license_info(package: &PackageLicense) -> LicenseInfo {
+    // Prioritize classifiers (more standardized)
     for classifier in &package.license_classifiers {
         if let Some(license_name) = extract_license_from_classifier(classifier) {
-            return Some(license_name);
+            let normalized_name = normalize_license_name(&license_name);
+            let is_osi = classifier.contains("OSI Approved");
+            return LicenseInfo {
+                name: Some(normalized_name),
+                is_osi_approved: is_osi,
+                source: LicenseSource::Classifier(classifier.clone()),
+            };
         }
     }
-    
-    None
+
+    // Only use License field if no classifiers found AND license field is not a copyright statement
+    if let Some(license) = &package.license {
+        if !license.starts_with("Copyright") && !license.starts_with("=") && license.len() >= 3 {
+            let normalized_name = normalize_license_name(license);
+            let is_osi = is_osi_approved_license(&normalized_name);
+            return LicenseInfo {
+                name: Some(normalized_name),
+                is_osi_approved: is_osi,
+                source: LicenseSource::LicenseField,
+            };
+        }
+    }
+
+    // No license information found
+    LicenseInfo {
+        name: None,
+        is_osi_approved: false,
+        source: LicenseSource::Unknown,
+    }
+}
+
+pub fn get_effective_license(package: &PackageLicense) -> Option<String> {
+    extract_license_info(package).name
 }
 
 fn extract_license_from_classifier(classifier: &str) -> Option<String> {
@@ -419,6 +434,54 @@ mod tests {
             extract_license_from_classifier("Not a license classifier"),
             None
         );
+    }
+
+    #[test]
+    fn test_extract_license_info_classifier_priority() {
+        let package = PackageLicense {
+            name: "test-package".to_string(),
+            version: Some("1.0.0".to_string()),
+            license: Some("Copyright (c) 2025".to_string()),
+            license_classifiers: vec!["License :: OSI Approved :: MIT License".to_string()],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let info = extract_license_info(&package);
+        assert_eq!(info.name, Some("MIT".to_string()));
+        assert_eq!(info.is_osi_approved, true);
+        assert!(matches!(info.source, LicenseSource::Classifier(_)));
+    }
+
+    #[test]
+    fn test_extract_license_info_license_field_fallback() {
+        let package = PackageLicense {
+            name: "test-package".to_string(),
+            version: Some("1.0.0".to_string()),
+            license: Some("Apache-2.0".to_string()),
+            license_classifiers: vec![],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let info = extract_license_info(&package);
+        assert_eq!(info.name, Some("Apache-2.0".to_string()));
+        assert_eq!(info.is_osi_approved, true);
+        assert!(matches!(info.source, LicenseSource::LicenseField));
+    }
+
+    #[test]
+    fn test_extract_license_info_unknown() {
+        let package = PackageLicense {
+            name: "test-package".to_string(),
+            version: Some("1.0.0".to_string()),
+            license: Some("Copyright (c) 2025".to_string()),
+            license_classifiers: vec![],
+            metadata_source: "METADATA".to_string(),
+        };
+
+        let info = extract_license_info(&package);
+        assert_eq!(info.name, None);
+        assert_eq!(info.is_osi_approved, false);
+        assert!(matches!(info.source, LicenseSource::Unknown));
     }
 
     #[test]
