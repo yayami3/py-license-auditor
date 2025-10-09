@@ -24,3 +24,8 @@ patterns = []
 [tool.py-license-auditor.policy.review_required]
 exact = ["GPL-2.0", "GPL-3.0", "AGPL-3.0"]
 patterns = ["GPL-*", "AGPL-*"]
+
+[[tool.py-license-auditor.policy.exceptions]]
+name = "example-package"
+version = "1.0.0"
+reason = "Example exception - remove this entry"

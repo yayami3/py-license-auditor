@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔧 Bug Fixes
+
+#### Fixed
+- **Fix subcommand**: Fixed `py-license-auditor fix` command failing with "Invalid exceptions format" error
+- **Preset configurations**: All preset files (green, yellow, red) now include required exceptions section
+- **Default format**: Fixed `init` command still generating `format = "json"` instead of `format = "table"`
+
+#### Developer Experience
+- `uv tool run py-license-auditor fix` now works correctly
+- All preset configurations properly support the fix subcommand
+- Consistent table format across all initialization methods
+
 ## [0.5.1] - 2025-10-08
 
 ### 🎨 Improved User Experience
