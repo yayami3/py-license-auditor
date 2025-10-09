@@ -72,6 +72,10 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
 
+        /// Interactive mode for license-based exception handling
+        #[arg(long)]
+        interactive: bool,
+
         /// Output format for changes
         #[arg(short, long)]
         format: Option<OutputFormat>,
@@ -123,8 +127,8 @@ fn main() -> Result<()> {
         Commands::Init { policy } => {
             handle_init(policy, cli.quiet)
         }
-        Commands::Fix { path, dry_run, format } => {
-            handle_fix(path, dry_run, format, cli.quiet)
+        Commands::Fix { path, dry_run, interactive, format } => {
+            handle_fix(path, dry_run, interactive, format, cli.quiet)
         }
         Commands::Config { show, validate } => {
             handle_config(show, validate, cli.quiet)
@@ -222,6 +226,7 @@ fn handle_init(policy: InitPreset, quiet: bool) -> Result<()> {
 fn handle_fix(
     path: Option<PathBuf>,
     dry_run: bool,
+    interactive: bool,
     _format: Option<OutputFormat>,
     quiet: bool,
 ) -> Result<()> {
@@ -251,7 +256,32 @@ fn handle_fix(
         return Ok(());
     }
     
-    // Create exceptions from violations
+    if interactive {
+        // Use interactive license-based exception handling
+        use py_license_auditor::exceptions::handle_interactive_exceptions;
+        
+        if dry_run {
+            if !quiet {
+                println!("Interactive mode with --dry-run is not supported");
+                println!("Use either --interactive or --dry-run, not both");
+            }
+            return Ok(());
+        }
+        
+        let remaining_violations = handle_interactive_exceptions(violations)?;
+        
+        if !quiet {
+            if remaining_violations.total == 0 {
+                println!("✅ All violations resolved with exceptions");
+            } else {
+                println!("⚠️  {} violations remain unresolved", remaining_violations.total);
+            }
+        }
+        
+        return Ok(());
+    }
+    
+    // Default behavior: create exceptions from violations
     let mut exceptions = Vec::new();
     for detail in &violations.details {
         let exception = py_license_auditor::policy::PackageException {
