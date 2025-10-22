@@ -30,7 +30,7 @@ pub use extractor::extract_all_licenses;
 pub struct PackageLicense {
     pub name: String,
     pub version: Option<String>,
-    pub license: Option<String>,
+    pub effective_license: Option<String>,
     pub license_classifiers: Vec<String>,
     pub metadata_source: String,
 }
@@ -132,7 +132,7 @@ pub fn extract_licenses_from_uv_lock(uv_lock_path: Option<PathBuf>, site_package
                 Some(PackageLicense {
                     name: package_name.clone(),
                     version: Some(package_version.clone()),
-                    license: None,
+                    effective_license: None,
                     license_classifiers: vec![],
                     metadata_source: "uv.lock (not installed)".to_string(),
                 })
@@ -166,15 +166,22 @@ pub fn extract_licenses_auto(path: Option<PathBuf>, include_unknown: bool) -> Re
 
 pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
     let total_packages = packages.len();
-    let with_license = packages.iter()
-        .filter(|p| get_effective_license(p).is_some())
+    
+    // Set effective_license field for each package
+    let mut fixed_packages = packages;
+    for package in &mut fixed_packages {
+        package.effective_license = get_effective_license(package);
+    }
+    
+    let with_license = fixed_packages.iter()
+        .filter(|p| p.effective_license.is_some())
         .count();
     let without_license = total_packages - with_license;
 
     let mut osi_counts = HashMap::new();
     let mut non_osi_counts = HashMap::new();
 
-    for package in &packages {
+    for package in &fixed_packages {
         let license_info = get_license_info(package);
         for (license_name, is_osi) in license_info {
             if is_osi {
@@ -195,7 +202,7 @@ pub fn create_report(packages: Vec<PackageLicense>) -> LicenseReport {
     let non_osi: IndexMap<String, usize> = non_osi_vec.into_iter().collect();
 
     LicenseReport {
-        packages,
+        packages: fixed_packages,
         summary: LicenseSummary {
             total_packages,
             with_license,
@@ -313,8 +320,8 @@ pub fn extract_license_info(package: &PackageLicense) -> LicenseInfo {
         }
     }
 
-    // Only use License field if no classifiers found AND license field is not a copyright statement
-    if let Some(license) = &package.license {
+    // Use effective_license if available
+    if let Some(license) = &package.effective_license {
         if !license.starts_with("Copyright") && !license.starts_with("=") && license.len() >= 3 {
             let normalized_name = normalize_license_name(license);
             let is_osi = is_osi_approved_license(&normalized_name);
@@ -361,7 +368,7 @@ mod tests {
         let package = PackageLicense {
             name: "example-lib".to_string(),
             version: Some("1.2.3".to_string()),
-            license: Some("Copyright (c) 2025, Example Corp.".to_string()),
+            effective_license: Some("Copyright (c) 2025, Example Corp.".to_string()),
             license_classifiers: vec!["License :: OSI Approved :: BSD License".to_string()],
             metadata_source: "METADATA".to_string(),
         };
@@ -380,7 +387,7 @@ mod tests {
         let package = PackageLicense {
             name: "legacy-package".to_string(),
             version: Some("0.9.0".to_string()),
-            license: Some("Copyright (c) 2025, Legacy Developer.".to_string()),
+            effective_license: Some("Copyright (c) 2025, Legacy Developer.".to_string()),
             license_classifiers: vec![],
             metadata_source: "METADATA".to_string(),
         };
@@ -399,7 +406,7 @@ mod tests {
         let package = PackageLicense {
             name: "simple-tool".to_string(),
             version: Some("2.0.1".to_string()),
-            license: Some("MIT".to_string()),
+            effective_license: Some("MIT".to_string()),
             license_classifiers: vec![],
             metadata_source: "METADATA".to_string(),
         };
@@ -441,7 +448,7 @@ mod tests {
         let package = PackageLicense {
             name: "test-package".to_string(),
             version: Some("1.0.0".to_string()),
-            license: Some("Copyright (c) 2025".to_string()),
+            effective_license: Some("Copyright (c) 2025".to_string()),
             license_classifiers: vec!["License :: OSI Approved :: MIT License".to_string()],
             metadata_source: "METADATA".to_string(),
         };
@@ -457,7 +464,7 @@ mod tests {
         let package = PackageLicense {
             name: "test-package".to_string(),
             version: Some("1.0.0".to_string()),
-            license: Some("Apache-2.0".to_string()),
+            effective_license: Some("Apache-2.0".to_string()),
             license_classifiers: vec![],
             metadata_source: "METADATA".to_string(),
         };
@@ -473,7 +480,7 @@ mod tests {
         let package = PackageLicense {
             name: "test-package".to_string(),
             version: Some("1.0.0".to_string()),
-            license: Some("Copyright (c) 2025".to_string()),
+            effective_license: Some("Copyright (c) 2025".to_string()),
             license_classifiers: vec![],
             metadata_source: "METADATA".to_string(),
         };

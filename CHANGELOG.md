@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-10-23
+
+### 🚀 Major Changes
+
+#### Breaking Changes
+- **License field replacement**: Replaced raw `license` field with `effective_license` in JSON output
+- **Improved license detection**: Now correctly shows "BSD-3-Clause" for numpy instead of "Copyright (c) ..."
+- **Eliminated false positives**: Fixed issue where copyright statements were incorrectly flagged as license violations
+
+#### Fixed
+- **numpy license display**: Now correctly shows "BSD-3-Clause" instead of copyright text
+- **License detection accuracy**: Prioritizes license_classifiers over raw license field containing copyright statements
+- **JSON output clarity**: Removes confusing raw license data, shows only effective license information
+
+#### Technical
+- Replaced `PackageLicense.license` with `PackageLicense.effective_license`
+- Updated all output formats to use computed effective license
+- Fixed test expectations to match improved license detection behavior
+
 ## [0.5.3] - 2025-10-10
 
 ### 🔧 Improvements

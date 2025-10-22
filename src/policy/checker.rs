@@ -35,7 +35,7 @@ impl LicensePolicy {
             }
             
             // ライセンスがない場合
-            let license = match &package.license {
+            let license = match &package.effective_license {
                 Some(license) if !license.trim().is_empty() => license,
                 _ => {
                     violations.push(Violation {

@@ -1,7 +1,36 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use super::PackageLicense;
+use super::{PackageLicense, normalize_license_name};
+
+fn compute_effective_license(raw_license: &Option<String>, classifiers: &[String]) -> Option<String> {
+    // Prioritize classifiers (more standardized)
+    for classifier in classifiers {
+        if let Some(license_name) = extract_license_from_classifier(classifier) {
+            return Some(normalize_license_name(&license_name));
+        }
+    }
+
+    // Only use raw license field if no classifiers found AND it's not a copyright statement
+    if let Some(license) = raw_license {
+        if !license.starts_with("Copyright") && !license.starts_with("=") && license.len() >= 3 {
+            return Some(normalize_license_name(license));
+        }
+    }
+
+    None
+}
+
+fn extract_license_from_classifier(classifier: &str) -> Option<String> {
+    // Extract license name from classifier like "License :: OSI Approved :: MIT License"
+    if classifier.starts_with("License :: ") {
+        let parts: Vec<&str> = classifier.split(" :: ").collect();
+        if parts.len() >= 3 {
+            return Some(parts[2].to_string());
+        }
+    }
+    None
+}
 
 /// Extract license information from all packages in site-packages directory
 pub fn extract_all_licenses(site_packages_path: &Path, include_unknown: bool) -> Result<Vec<PackageLicense>> {
@@ -14,13 +43,13 @@ pub fn extract_all_licenses(site_packages_path: &Path, include_unknown: bool) ->
 
         if name_str.ends_with(".dist-info") {
             if let Some(package) = extract_from_dist_info(&entry.path())? {
-                if include_unknown || package.license.is_some() || !package.license_classifiers.is_empty() {
+                if include_unknown || package.effective_license.is_some() || !package.license_classifiers.is_empty() {
                     packages.push(package);
                 }
             }
         } else if name_str.ends_with(".egg-info") {
             if let Some(package) = extract_from_egg_info(&entry.path())? {
-                if include_unknown || package.license.is_some() || !package.license_classifiers.is_empty() {
+                if include_unknown || package.effective_license.is_some() || !package.license_classifiers.is_empty() {
                     packages.push(package);
                 }
             }
@@ -72,12 +101,15 @@ fn extract_from_dist_info(dist_info_path: &Path) -> Result<Option<PackageLicense
         .with_context(|| format!("Failed to read {}", metadata_path.display()))?;
 
     let (name, version) = parse_name_version_from_dist_info(dist_info_path)?;
-    let (license, classifiers) = parse_metadata_content(&content);
+    let (raw_license, classifiers) = parse_metadata_content(&content);
+    
+    // Compute effective license from raw data
+    let effective_license = compute_effective_license(&raw_license, &classifiers);
 
     Ok(Some(PackageLicense {
         name,
         version,
-        license,
+        effective_license,
         license_classifiers: classifiers,
         metadata_source: "METADATA".to_string(),
     }))
@@ -93,12 +125,15 @@ fn extract_from_egg_info(egg_info_path: &Path) -> Result<Option<PackageLicense>>
         .with_context(|| format!("Failed to read {}", pkg_info_path.display()))?;
 
     let (name, version) = parse_name_version_from_egg_info(egg_info_path)?;
-    let (license, classifiers) = parse_metadata_content(&content);
+    let (raw_license, classifiers) = parse_metadata_content(&content);
+    
+    // Compute effective license from raw data
+    let effective_license = compute_effective_license(&raw_license, &classifiers);
 
     Ok(Some(PackageLicense {
         name,
         version,
-        license,
+        effective_license,
         license_classifiers: classifiers,
         metadata_source: "PKG-INFO".to_string(),
     }))

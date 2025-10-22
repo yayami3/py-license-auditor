@@ -58,15 +58,17 @@ fn test_policy_violation_detection() {
     
     test_env.init_uv_project("violation-test", &["requests", "pandas"]).unwrap();
     
-    // Initialize strict CI policy with init subcommand
+    // Initialize yellow policy with init subcommand
     test_env.run_auditor("violation-test", &["init", "yellow"]);
     
-    // Run check - should find violations
+    // Run check - should find no violations after v0.5.3 license detection fix
+    // Previously, numpy showed "Copyright..." which was incorrectly flagged as violation
+    // Now, numpy correctly shows "BSD-3-Clause" which is allowed in yellow policy
     let output = test_env.run_auditor("violation-test", &["check"]);
     
-    // Check stderr for violation message
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("violations found") || stderr.contains("License violations"));
+    // Check stdout for success message (no violations expected)
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("No issues found") || stdout.contains("0 violations"));
 }
 
 #[test]
